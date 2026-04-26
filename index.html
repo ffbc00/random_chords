@@ -52,23 +52,62 @@
       padding: 24px 20px;
     }
 
-    .chord-prev {
-      font-size: clamp(18px, 4vw, 26px);
-      color: var(--dim);
-      min-height: 32px;
-      letter-spacing: -0.5px;
-      margin-bottom: 8px;
+    /* Mode tabs */
+    .mode-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
     }
+    .mode-tab {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .mode-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    /* Display wrappers (shared fade) */
+    .chord-wrap, .scale-wrap {
+      text-align: center;
+      transition: opacity 0.12s ease;
+    }
+    .chord-wrap.fade, .scale-wrap.fade { opacity: 0; }
+    .scale-wrap { display: none; }
+    .scale-wrap.visible { display: block; }
 
     .chord-current {
       font-size: clamp(72px, 18vw, 160px);
       font-weight: 900;
       letter-spacing: -3px;
       line-height: 1;
-      text-align: center;
-      transition: opacity 0.12s ease;
     }
-    .chord-current.fade { opacity: 0; }
+    .scale-root {
+      font-size: clamp(72px, 18vw, 140px);
+      font-weight: 900;
+      letter-spacing: -3px;
+      line-height: 1;
+    }
+    .scale-name {
+      font-size: clamp(22px, 5.5vw, 44px);
+      font-weight: 700;
+      margin-top: 6px;
+      letter-spacing: -0.5px;
+    }
+    .scale-notes {
+      font-size: 14px;
+      color: var(--dim);
+      margin-top: 14px;
+      min-height: 20px;
+      letter-spacing: 0.3px;
+    }
 
     /* ── TIMER ── */
     .timer-section {
@@ -274,28 +313,63 @@
     }
     .key-btn.on { border-color: var(--green); color: var(--green); }
 
-    /* Category cards */
-    .cat-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-    .cat-card {
-      padding: 12px;
+    /* Category sections */
+    .cat-section {
       border-radius: var(--r);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+    .cat-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 10px 11px 14px;
       background: var(--surf2);
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: border-color 0.15s;
+    }
+    .cat-header.all-on  { border-left-color: var(--accent); }
+    .cat-header.partial { border-left-color: var(--yellow); }
+    .cat-hname  { flex: 1; font-size: 14px; font-weight: 700; }
+    .cat-count  { font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
+    .cat-chevron {
+      background: none;
+      border: none;
+      color: var(--dim);
+      font-size: 11px;
+      padding: 4px 6px;
+      cursor: pointer;
+      transition: transform 0.2s;
+      line-height: 1;
+    }
+    .cat-chevron.open { transform: rotate(180deg); }
+    .cat-body {
+      display: none;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 12px 12px;
+      background: var(--surf);
+      border-top: 1px solid var(--border);
+    }
+    .cat-body.open { display: flex; }
+    .type-chip {
+      padding: 6px 12px;
+      border-radius: 16px;
+      font-size: 13px;
+      font-family: inherit;
+      background: var(--surf2);
+      color: var(--dim);
       border: 2px solid transparent;
       cursor: pointer;
-      text-align: left;
-      font-family: inherit;
-      transition: border-color 0.15s, background 0.15s;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
     }
-    .cat-card.on {
+    .type-chip.on {
       border-color: var(--accent);
+      color: var(--accent);
       background: rgba(99,102,241,0.10);
     }
-    .cat-name { font-size: 14px; font-weight: 700; color: var(--text); }
-    .cat-ex   { font-size: 11px; color: var(--dim); margin-top: 3px; line-height: 1.5; }
 
     .panel-pool {
       margin-top: 16px;
@@ -316,10 +390,22 @@
   <button class="btn btn-icon" id="settingsBtn" aria-label="Settings">⚙</button>
 </header>
 
+<!-- ── MODE TABS ── -->
+<div class="mode-tabs">
+  <button class="mode-tab active" id="tabChords">Chords</button>
+  <button class="mode-tab"        id="tabScales">Scales</button>
+</div>
+
 <!-- ── MAIN ── -->
 <main class="main">
-  <div class="chord-prev" id="chordPrev"></div>
-  <div class="chord-current" id="chordCurrent">Ready</div>
+  <div class="chord-wrap" id="chordWrap">
+    <div class="chord-current" id="chordCurrent">Ready</div>
+  </div>
+  <div class="scale-wrap" id="scaleWrap">
+    <div class="scale-root" id="scaleRoot"></div>
+    <div class="scale-name" id="scaleName">Ready</div>
+    <div class="scale-notes" id="scaleNotes"></div>
+  </div>
 
   <div class="timer-section">
     <div class="timer-row">
@@ -383,8 +469,21 @@
   <div class="note-grid" id="noteGrid"></div>
 
   <!-- Categories -->
-  <div class="s-row"><span class="s-label">Chord Types</span></div>
-  <div class="cat-grid" id="catGrid"></div>
+  <!-- Chord Types (chord mode only) -->
+  <div id="chordTypesSection">
+    <div class="s-row"><span class="s-label">Chord Types</span></div>
+    <div id="catGrid"></div>
+  </div>
+
+  <!-- Scale Types (scale mode only) -->
+  <div id="scaleTypesSection" style="display:none">
+    <div class="s-row"><span class="s-label">Scale Types</span></div>
+    <div id="scaleCatGrid"></div>
+    <div class="s-row">
+      <span class="s-label">Show Notes</span>
+      <button class="chip" id="showNotesToggle">Off</button>
+    </div>
+  </div>
 
   <div class="panel-pool" id="panelPool"></div>
 </div>
@@ -466,34 +565,50 @@ const CATEGORIES = [
 
 const ALL_TYPES = CATEGORIES.flatMap(c => c.types);
 
+// ─── SCALE DATA ───────────────────────────────
+const SCALE_CATEGORIES = [
+  {
+    id: 'basic', name: 'Basic',
+    scales: [
+      { id: 'major',    name: 'Major',          intervals: [0,2,4,5,7,9,11] },
+      { id: 'nat_min',  name: 'Natural Minor',   intervals: [0,2,3,5,7,8,10] },
+      { id: 'har_min',  name: 'Harmonic Minor',  intervals: [0,2,3,5,7,8,11] },
+      { id: 'mel_min',  name: 'Melodic Minor',   intervals: [0,2,3,5,7,9,11] },
+    ]
+  },
+  {
+    id: 'modes', name: 'Church Modes',
+    scales: [
+      { id: 'ionian',     name: 'Ionian',     intervals: [0,2,4,5,7,9,11] },
+      { id: 'dorian',     name: 'Dorian',     intervals: [0,2,3,5,7,9,10] },
+      { id: 'phrygian',   name: 'Phrygian',   intervals: [0,1,3,5,7,8,10] },
+      { id: 'lydian',     name: 'Lydian',     intervals: [0,2,4,6,7,9,11] },
+      { id: 'mixolydian', name: 'Mixolydian', intervals: [0,2,4,5,7,9,10] },
+      { id: 'aeolian',    name: 'Aeolian',    intervals: [0,2,3,5,7,8,10] },
+      { id: 'locrian',    name: 'Locrian',    intervals: [0,1,3,5,6,8,10] },
+    ]
+  },
+];
+const ALL_SCALES = SCALE_CATEGORIES.flatMap(c => c.scales);
+
 const MAJ_SCALE = [0,2,4,5,7,9,11];
 const MIN_SCALE = [0,2,3,5,7,8,10];
 
+// Relative minor = major root + 9 semitones (same scale notes)
 const KEYS = [
-  // Major — circle of fifths
-  { name:'C',  root:0,  mode:'maj', not:'sharp' },
-  { name:'G',  root:7,  mode:'maj', not:'sharp' },
-  { name:'D',  root:2,  mode:'maj', not:'sharp' },
-  { name:'A',  root:9,  mode:'maj', not:'sharp' },
-  { name:'E',  root:4,  mode:'maj', not:'sharp' },
-  { name:'B',  root:11, mode:'maj', not:'sharp' },
-  { name:'F#', root:6,  mode:'maj', not:'sharp' },
-  { name:'F',  root:5,  mode:'maj', not:'flat'  },
-  { name:'B♭', root:10, mode:'maj', not:'flat'  },
-  { name:'E♭', root:3,  mode:'maj', not:'flat'  },
-  { name:'A♭', root:8,  mode:'maj', not:'flat'  },
-  { name:'D♭', root:1,  mode:'maj', not:'flat'  },
-  { name:'G♭', root:6,  mode:'maj', not:'flat'  },
-  // Natural minor
-  { name:'Am', root:9,  mode:'min', not:'sharp' },
-  { name:'Em', root:4,  mode:'min', not:'sharp' },
-  { name:'Bm', root:11, mode:'min', not:'sharp' },
-  { name:'F#m',root:6,  mode:'min', not:'sharp' },
-  { name:'Dm', root:2,  mode:'min', not:'flat'  },
-  { name:'Gm', root:7,  mode:'min', not:'flat'  },
-  { name:'Cm', root:0,  mode:'min', not:'flat'  },
-  { name:'Fm', root:5,  mode:'min', not:'flat'  },
-  { name:'B♭m',root:10, mode:'min', not:'flat'  },
+  { name:'C / Am',    root:0,  not:'sharp' },
+  { name:'G / Em',    root:7,  not:'sharp' },
+  { name:'D / Bm',    root:2,  not:'sharp' },
+  { name:'A / F♯m',  root:9,  not:'sharp' },
+  { name:'E / C♯m',  root:4,  not:'sharp' },
+  { name:'B / G♯m',  root:11, not:'sharp' },
+  { name:'F♯ / D♯m', root:6,  not:'sharp' },
+  { name:'F / Dm',    root:5,  not:'flat'  },
+  { name:'B♭ / Gm',  root:10, not:'flat'  },
+  { name:'E♭ / Cm',  root:3,  not:'flat'  },
+  { name:'A♭ / Fm',  root:8,  not:'flat'  },
+  { name:'D♭ / B♭m', root:1,  not:'flat'  },
+  { name:'G♭ / E♭m', root:6,  not:'flat'  },
 ];
 
 const PRESETS = [2, 3, 4, 5, 8, 10, 15, 20, 30];
@@ -504,15 +619,23 @@ const PRESETS = [2, 3, 4, 5, 8, 10, 15, 20, 30];
 
 const S = {
   running:     false,
-  interval:    5,       // seconds
+  interval:    5,
   timeLeft:    5,
   notation:    'sharp',
+  mode:        'chord',   // 'chord' | 'scale'
   activeRoots: new Set([...Array(12).keys()]),
-  activeCats:  new Set(['triad', 'seventh']),
+  activeTypes: new Set(
+    CATEGORIES
+      .filter(c => c.id === 'triad' || c.id === 'seventh')
+      .flatMap(c => c.types.map(t => t.id))
+  ),
+  activeScales: new Set(
+    SCALE_CATEGORIES.find(c => c.id === 'basic').scales.map(s => s.id)
+  ),
+  showNotes:   false,
   selectedKey: null,
   pool:        [],
   current:     null,
-  prev:        null,
   tick:        null,
 };
 
@@ -529,15 +652,18 @@ function chordLabel(c) {
 }
 
 function buildPool() {
-  const enabledTypes = new Set(
-    CATEGORIES
-      .filter(c => S.activeCats.has(c.id))
-      .flatMap(c => c.types.map(t => t.id))
-  );
   S.pool = [];
-  for (const root of S.activeRoots) {
-    for (const type of ALL_TYPES) {
-      if (enabledTypes.has(type.id)) S.pool.push({ root, type });
+  if (S.mode === 'chord') {
+    for (const root of S.activeRoots) {
+      for (const type of ALL_TYPES) {
+        if (S.activeTypes.has(type.id)) S.pool.push({ root, type });
+      }
+    }
+  } else {
+    for (const root of S.activeRoots) {
+      for (const scale of ALL_SCALES) {
+        if (S.activeScales.has(scale.id)) S.pool.push({ root, scale });
+      }
     }
   }
 }
@@ -546,18 +672,23 @@ function pickNext() {
   if (!S.pool.length) return null;
   let candidates = S.pool;
   if (S.current && S.pool.length > 1) {
-    candidates = S.pool.filter(
-      c => !(c.root === S.current.root && c.type.id === S.current.type.id)
-    );
+    if (S.mode === 'chord') {
+      candidates = S.pool.filter(
+        c => !(c.root === S.current.root && c.type.id === S.current.type.id)
+      );
+    } else {
+      candidates = S.pool.filter(
+        c => !(c.root === S.current.root && c.scale.id === S.current.scale.id)
+      );
+    }
     if (!candidates.length) candidates = S.pool;
   }
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
 function advance() {
-  S.prev    = S.current;
   S.current = pickNext();
-  renderChord();
+  renderItem();
 }
 
 // ═══════════════════════════════════════════════
@@ -587,23 +718,44 @@ function stopTimer() {
 // RENDER
 // ═══════════════════════════════════════════════
 
-const $current   = document.getElementById('chordCurrent');
-const $prev      = document.getElementById('chordPrev');
-const $barFill   = document.getElementById('barFill');
-const $timerLbl  = document.getElementById('timerLabel');
-const $timerNum  = document.getElementById('timerNum');
-const $poolBadge = document.getElementById('poolBadge');
-const $panelPool = document.getElementById('panelPool');
-const $startBtn  = document.getElementById('startBtn');
-const $skipBtn   = document.getElementById('skipBtn');
+const $chordWrap  = document.getElementById('chordWrap');
+const $scaleWrap  = document.getElementById('scaleWrap');
+const $current    = document.getElementById('chordCurrent');
+const $scaleRoot  = document.getElementById('scaleRoot');
+const $scaleName  = document.getElementById('scaleName');
+const $scaleNotes = document.getElementById('scaleNotes');
+const $barFill    = document.getElementById('barFill');
+const $timerLbl   = document.getElementById('timerLabel');
+const $timerNum   = document.getElementById('timerNum');
+const $poolBadge  = document.getElementById('poolBadge');
+const $panelPool  = document.getElementById('panelPool');
+const $startBtn   = document.getElementById('startBtn');
+const $skipBtn    = document.getElementById('skipBtn');
 
-function renderChord() {
-  $current.classList.add('fade');
-  setTimeout(() => {
-    $current.textContent = S.current ? chordLabel(S.current) : '—';
-    $prev.textContent    = S.prev    ? chordLabel(S.prev)    : '';
-    $current.classList.remove('fade');
-  }, 120);
+function renderItem() {
+  if (S.mode === 'chord') {
+    $chordWrap.classList.add('fade');
+    setTimeout(() => {
+      $current.textContent = S.current ? chordLabel(S.current) : 'Ready';
+      $chordWrap.classList.remove('fade');
+    }, 120);
+  } else {
+    $scaleWrap.classList.add('fade');
+    setTimeout(() => {
+      if (S.current) {
+        $scaleRoot.textContent  = noteName(S.current.root);
+        $scaleName.textContent  = S.current.scale.name;
+        $scaleNotes.textContent = S.showNotes
+          ? S.current.scale.intervals.map(i => noteName((S.current.root + i) % 12)).join(' · ')
+          : '';
+      } else {
+        $scaleRoot.textContent  = '';
+        $scaleName.textContent  = 'Ready';
+        $scaleNotes.textContent = '';
+      }
+      $scaleWrap.classList.remove('fade');
+    }, 120);
+  }
 }
 
 function renderProgress() {
@@ -611,7 +763,7 @@ function renderProgress() {
   $barFill.style.width = pct + '%';
 
   if (S.running) {
-    $timerLbl.textContent = 'Next chord in';
+    $timerLbl.textContent = S.mode === 'chord' ? 'Next chord in' : 'Next scale in';
     $timerNum.textContent = S.timeLeft.toFixed(1) + 's';
   } else if (S.current) {
     $timerLbl.textContent = 'Paused';
@@ -623,10 +775,11 @@ function renderProgress() {
 }
 
 function renderPoolCount() {
-  const n = S.pool.length;
-  const msg = n === 0
-    ? '⚠ No chords in pool — adjust filters'
-    : `${n} chords in active pool`;
+  const n    = S.pool.length;
+  const unit = S.mode === 'chord' ? 'chord' : 'scale';
+  const msg  = n === 0
+    ? `⚠ No ${unit}s in pool — adjust filters`
+    : `${n} ${unit}${n !== 1 ? 's' : ''} in active pool`;
   $poolBadge.textContent = msg;
   $poolBadge.className   = 'pool-badge' + (n === 0 ? ' warn' : '');
   $panelPool.textContent = msg;
@@ -720,9 +873,17 @@ function setNotation(not) {
   S.notation = not;
   $notSharp.classList.toggle('on', not === 'sharp');
   $notFlat.classList.toggle('on',  not === 'flat');
-  // Update live display
-  if (S.current) $current.textContent = chordLabel(S.current);
-  if (S.prev)    $prev.textContent    = chordLabel(S.prev);
+  if (S.current) {
+    if (S.mode === 'chord') {
+      $current.textContent = chordLabel(S.current);
+    } else {
+      $scaleRoot.textContent = noteName(S.current.root);
+      if (S.showNotes) {
+        $scaleNotes.textContent = S.current.scale.intervals
+          .map(i => noteName((S.current.root + i) % 12)).join(' · ');
+      }
+    }
+  }
   renderNoteGrid();
 }
 
@@ -752,8 +913,7 @@ KEYS.forEach(k => {
   btn.textContent = k.name;
   btn.addEventListener('click', () => {
     S.selectedKey = k;
-    const scale = k.mode === 'min' ? MIN_SCALE : MAJ_SCALE;
-    S.activeRoots = new Set(scale.map(d => (k.root + d) % 12));
+    S.activeRoots = new Set(MAJ_SCALE.map(d => (k.root + d) % 12));
     document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
     btn.classList.add('on');
     setNotation(k.not);
@@ -808,15 +968,195 @@ document.getElementById('noRoots').addEventListener('click', () => {
 const $catGrid = document.getElementById('catGrid');
 
 CATEGORIES.forEach(cat => {
-  const card = document.createElement('button');
-  card.className = 'cat-card' + (S.activeCats.has(cat.id) ? ' on' : '');
-  card.innerHTML = `<div class="cat-name">${cat.name}</div><div class="cat-ex">${cat.ex}</div>`;
-  card.addEventListener('click', () => {
-    if (S.activeCats.has(cat.id)) { S.activeCats.delete(cat.id); card.classList.remove('on'); }
-    else                           { S.activeCats.add(cat.id);    card.classList.add('on');    }
+  const section  = document.createElement('div');
+  section.className = 'cat-section';
+
+  // Header
+  const header   = document.createElement('div');
+  header.className = 'cat-header';
+
+  const nameEl   = document.createElement('span');
+  nameEl.className = 'cat-hname';
+  nameEl.textContent = cat.name;
+
+  const countEl  = document.createElement('span');
+  countEl.className = 'cat-count';
+
+  const chevron  = document.createElement('button');
+  chevron.className = 'cat-chevron';
+  chevron.textContent = '▼';
+
+  header.appendChild(nameEl);
+  header.appendChild(countEl);
+  header.appendChild(chevron);
+
+  // Body with individual type chips
+  const body = document.createElement('div');
+  body.className = 'cat-body';
+
+  const chips = cat.types.map(type => {
+    const chip = document.createElement('button');
+    chip.className = 'type-chip' + (S.activeTypes.has(type.id) ? ' on' : '');
+    chip.textContent = type.sym === '' ? 'maj' : type.sym;
+    chip.addEventListener('click', () => {
+      if (S.activeTypes.has(type.id)) S.activeTypes.delete(type.id);
+      else                             S.activeTypes.add(type.id);
+      chip.classList.toggle('on', S.activeTypes.has(type.id));
+      syncHeader();
+      refreshPool();
+    });
+    body.appendChild(chip);
+    return chip;
+  });
+
+  // Header click: toggle all types in this category
+  header.addEventListener('click', e => {
+    if (e.target === chevron) return;
+    const allOn = cat.types.every(t => S.activeTypes.has(t.id));
+    cat.types.forEach((t, i) => {
+      if (allOn) { S.activeTypes.delete(t.id); chips[i].classList.remove('on'); }
+      else       { S.activeTypes.add(t.id);    chips[i].classList.add('on');    }
+    });
+    syncHeader();
     refreshPool();
   });
-  $catGrid.appendChild(card);
+
+  // Chevron: expand / collapse only
+  let open = false;
+  chevron.addEventListener('click', e => {
+    e.stopPropagation();
+    open = !open;
+    body.classList.toggle('open', open);
+    chevron.classList.toggle('open', open);
+  });
+
+  function syncHeader() {
+    const n = cat.types.filter(t => S.activeTypes.has(t.id)).length;
+    countEl.textContent = `${n}/${cat.types.length}`;
+    header.className = 'cat-header' + (n === cat.types.length ? ' all-on' : n > 0 ? ' partial' : '');
+  }
+
+  syncHeader();
+  section.appendChild(header);
+  section.appendChild(body);
+  $catGrid.appendChild(section);
+});
+
+// ── Mode tabs ──────────────────────────────────
+const $chordTypesSection = document.getElementById('chordTypesSection');
+const $scaleTypesSection = document.getElementById('scaleTypesSection');
+
+function switchMode(mode) {
+  if (S.mode === mode) return;
+  S.mode    = mode;
+  S.current = null;
+  stopTimer();
+  S.running = false;
+  $startBtn.textContent = 'Start';
+
+  const isChord = mode === 'chord';
+  $chordWrap.style.display           = isChord ? '' : 'none';
+  $scaleWrap.classList.toggle('visible', !isChord);
+  $chordTypesSection.style.display   = isChord ? '' : 'none';
+  $scaleTypesSection.style.display   = isChord ? 'none' : '';
+  document.getElementById('tabChords').classList.toggle('active', isChord);
+  document.getElementById('tabScales').classList.toggle('active', !isChord);
+
+  if (isChord) {
+    $current.textContent    = 'Ready';
+  } else {
+    $scaleRoot.textContent  = '';
+    $scaleName.textContent  = 'Ready';
+    $scaleNotes.textContent = '';
+  }
+  renderProgress();
+  refreshPool();
+}
+
+document.getElementById('tabChords').addEventListener('click', () => switchMode('chord'));
+document.getElementById('tabScales').addEventListener('click', () => switchMode('scale'));
+
+// ── Show Notes toggle ──────────────────────────
+const $showNotesToggle = document.getElementById('showNotesToggle');
+$showNotesToggle.addEventListener('click', () => {
+  S.showNotes = !S.showNotes;
+  $showNotesToggle.textContent = S.showNotes ? 'On' : 'Off';
+  $showNotesToggle.classList.toggle('on', S.showNotes);
+  if (S.mode === 'scale' && S.current) {
+    $scaleNotes.textContent = S.showNotes
+      ? S.current.scale.intervals.map(i => noteName((S.current.root + i) % 12)).join(' · ')
+      : '';
+  }
+});
+
+// ── Scale categories ───────────────────────────
+const $scaleCatGrid = document.getElementById('scaleCatGrid');
+
+SCALE_CATEGORIES.forEach(cat => {
+  const section = document.createElement('div');
+  section.className = 'cat-section';
+
+  const header  = document.createElement('div');
+  header.className = 'cat-header';
+  const nameEl  = document.createElement('span');
+  nameEl.className = 'cat-hname';
+  nameEl.textContent = cat.name;
+  const countEl = document.createElement('span');
+  countEl.className = 'cat-count';
+  const chevron = document.createElement('button');
+  chevron.className = 'cat-chevron';
+  chevron.textContent = '▼';
+  header.appendChild(nameEl);
+  header.appendChild(countEl);
+  header.appendChild(chevron);
+
+  const body = document.createElement('div');
+  body.className = 'cat-body';
+
+  const chips = cat.scales.map(scale => {
+    const chip = document.createElement('button');
+    chip.className = 'type-chip' + (S.activeScales.has(scale.id) ? ' on' : '');
+    chip.textContent = scale.name;
+    chip.addEventListener('click', () => {
+      if (S.activeScales.has(scale.id)) S.activeScales.delete(scale.id);
+      else                               S.activeScales.add(scale.id);
+      chip.classList.toggle('on', S.activeScales.has(scale.id));
+      syncHeader();
+      if (S.mode === 'scale') refreshPool();
+    });
+    body.appendChild(chip);
+    return chip;
+  });
+
+  header.addEventListener('click', e => {
+    if (e.target === chevron) return;
+    const allOn = cat.scales.every(s => S.activeScales.has(s.id));
+    cat.scales.forEach((s, i) => {
+      if (allOn) { S.activeScales.delete(s.id); chips[i].classList.remove('on'); }
+      else       { S.activeScales.add(s.id);    chips[i].classList.add('on');    }
+    });
+    syncHeader();
+    if (S.mode === 'scale') refreshPool();
+  });
+
+  let open = false;
+  chevron.addEventListener('click', e => {
+    e.stopPropagation();
+    open = !open;
+    body.classList.toggle('open', open);
+    chevron.classList.toggle('open', open);
+  });
+
+  function syncHeader() {
+    const n = cat.scales.filter(s => S.activeScales.has(s.id)).length;
+    countEl.textContent = `${n}/${cat.scales.length}`;
+    header.className = 'cat-header' + (n === cat.scales.length ? ' all-on' : n > 0 ? ' partial' : '');
+  }
+
+  syncHeader();
+  section.appendChild(header);
+  section.appendChild(body);
+  $scaleCatGrid.appendChild(section);
 });
 
 // ═══════════════════════════════════════════════
