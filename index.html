@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Chord Trainer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #111827;
+      --surf:    #1f2937;
+      --surf2:   #374151;
+      --accent:  #6366f1;
+      --green:   #10b981;
+      --yellow:  #f59e0b;
+      --dim:     #6b7280;
+      --text:    #f9fafb;
+      --border:  #374151;
+      --r:       10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .header-title { font-size: 17px; font-weight: 700; }
+
+    /* ── MAIN ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+
+    .chord-prev {
+      font-size: clamp(18px, 4vw, 26px);
+      color: var(--dim);
+      min-height: 32px;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .chord-current {
+      font-size: clamp(72px, 18vw, 160px);
+      font-weight: 900;
+      letter-spacing: -3px;
+      line-height: 1;
+      text-align: center;
+      transition: opacity 0.12s ease;
+    }
+    .chord-current.fade { opacity: 0; }
+
+    /* ── TIMER ── */
+    .timer-section {
+      margin-top: 36px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .timer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 8px;
+    }
+    .timer-label { font-size: 13px; color: var(--dim); }
+    .timer-num   {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      min-width: 52px;
+      text-align: right;
+    }
+    .bar-track {
+      height: 6px;
+      background: var(--surf2);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 3px;
+      width: 0%;
+      will-change: width;
+    }
+
+    /* ── CONTROLS ── */
+    .controls {
+      margin-top: 28px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: var(--r);
+      font-family: inherit;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.1s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.95); }
+
+    .btn-primary   { background: var(--accent); color: #fff; font-size: 16px; padding: 14px 36px; }
+    .btn-secondary { background: var(--surf2);  color: var(--text); font-size: 15px; padding: 14px 22px; }
+    .btn-icon      { background: transparent; color: var(--text); font-size: 22px; padding: 6px 10px; border-radius: 8px; }
+
+    .pool-badge {
+      margin-top: 20px;
+      font-size: 12px;
+      color: var(--dim);
+    }
+    .pool-badge.warn { color: var(--yellow); }
+
+    /* ── OVERLAY & PANEL ── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.55);
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .overlay.open { opacity: 1; pointer-events: all; }
+
+    .panel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: var(--surf);
+      border-radius: 20px 20px 0 0;
+      padding: 12px 20px 40px;
+      max-height: 90dvh;
+      overflow-y: auto;
+      z-index: 21;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(.32,.72,0,1);
+      overscroll-behavior: contain;
+    }
+    .panel.open { transform: translateY(0); }
+
+    .panel-handle {
+      width: 36px; height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      margin: 0 auto 14px;
+    }
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .panel-title { font-size: 18px; font-weight: 700; }
+
+    /* ── SETTINGS SECTIONS ── */
+    .s-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 20px 0 8px;
+    }
+    .s-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+    .s-actions { display: flex; gap: 6px; }
+
+    /* Chip */
+    .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .chip {
+      padding: 7px 15px;
+      border-radius: 20px;
+      background: var(--surf2);
+      color: var(--text);
+      font-size: 14px;
+      font-family: inherit;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .chip.on { border-color: var(--accent); color: var(--accent); }
+    .chip-sm { padding: 5px 11px; font-size: 12px; }
+
+    /* Custom interval */
+    .custom-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .custom-row label { font-size: 13px; color: var(--dim); white-space: nowrap; }
+    .num-input {
+      background: var(--surf2);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      padding: 6px 10px;
+      width: 72px;
+      text-align: center;
+    }
+    .num-input:focus { outline: none; border-color: var(--accent); }
+
+    /* Notation chips */
+    .notation-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0;
+    }
+    .notation-row .chip-row { margin-left: auto; }
+
+    /* Note grid */
+    .note-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+    }
+    .note-btn {
+      padding: 12px 2px;
+      border-radius: 8px;
+      background: var(--surf2);
+      color: var(--text);
+      font-size: 12px;
+      font-family: inherit;
+      text-align: center;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .note-btn.on {
+      border-color: var(--accent);
+      background: rgba(99,102,241,0.12);
+      color: var(--accent);
+    }
+
+    /* Key grid */
+    .key-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .key-btn {
+      padding: 8px 13px;
+      border-radius: 8px;
+      background: var(--surf2);
+      color: var(--text);
+      font-size: 13px;
+      font-family: inherit;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .key-btn.on { border-color: var(--green); color: var(--green); }
+
+    /* Category cards */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .cat-card {
+      padding: 12px;
+      border-radius: var(--r);
+      background: var(--surf2);
+      border: 2px solid transparent;
+      cursor: pointer;
+      text-align: left;
+      font-family: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .cat-card.on {
+      border-color: var(--accent);
+      background: rgba(99,102,241,0.10);
+    }
+    .cat-name { font-size: 14px; font-weight: 700; color: var(--text); }
+    .cat-ex   { font-size: 11px; color: var(--dim); margin-top: 3px; line-height: 1.5; }
+
+    .panel-pool {
+      margin-top: 16px;
+      font-size: 13px;
+      padding: 10px;
+      border-radius: 8px;
+      background: var(--surf2);
+      text-align: center;
+      color: var(--dim);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="header">
+  <div class="header-title">Chord Trainer</div>
+  <button class="btn btn-icon" id="settingsBtn" aria-label="Settings">⚙</button>
+</header>
+
+<!-- ── MAIN ── -->
+<main class="main">
+  <div class="chord-prev" id="chordPrev"></div>
+  <div class="chord-current" id="chordCurrent">Ready</div>
+
+  <div class="timer-section">
+    <div class="timer-row">
+      <span class="timer-label" id="timerLabel">—</span>
+      <span class="timer-num"   id="timerNum"></span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill" id="barFill"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-secondary" id="skipBtn">Skip</button>
+    <button class="btn btn-primary"   id="startBtn">Start</button>
+  </div>
+
+  <div class="pool-badge" id="poolBadge"></div>
+</main>
+
+<!-- ── OVERLAY ── -->
+<div class="overlay" id="overlay"></div>
+
+<!-- ── SETTINGS PANEL ── -->
+<div class="panel" id="panel">
+  <div class="panel-handle"></div>
+  <div class="panel-header">
+    <div class="panel-title">Settings</div>
+    <button class="btn btn-icon" id="closeBtn">✕</button>
+  </div>
+
+  <!-- Interval -->
+  <div class="s-row"><span class="s-label">Interval</span></div>
+  <div class="chip-row" id="intervalRow"></div>
+  <div class="custom-row">
+    <label for="customSec">Custom:</label>
+    <input type="number" id="customSec" class="num-input" min="1" max="300" placeholder="sec">
+    <button class="btn btn-secondary" id="applyCustom" style="padding:7px 14px;font-size:13px">Set</button>
+  </div>
+
+  <!-- Notation -->
+  <div class="s-row">
+    <span class="s-label">Notation</span>
+    <div class="chip-row">
+      <button class="chip on" id="notSharp">♯ Sharps</button>
+      <button class="chip"    id="notFlat">♭ Flats</button>
+    </div>
+  </div>
+
+  <!-- Key -->
+  <div class="s-row"><span class="s-label">Quick Key Select</span></div>
+  <div class="key-grid" id="keyGrid"></div>
+
+  <!-- Roots -->
+  <div class="s-row">
+    <span class="s-label">Root Notes</span>
+    <div class="s-actions">
+      <button class="chip chip-sm" id="allRoots">All</button>
+      <button class="chip chip-sm" id="noRoots">None</button>
+    </div>
+  </div>
+  <div class="note-grid" id="noteGrid"></div>
+
+  <!-- Categories -->
+  <div class="s-row"><span class="s-label">Chord Types</span></div>
+  <div class="cat-grid" id="catGrid"></div>
+
+  <div class="panel-pool" id="panelPool"></div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+
+const SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT  = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
+
+const CATEGORIES = [
+  {
+    id: 'triad', name: 'Triads',
+    ex: 'C · Cm · Caug · Cdim · Csus2',
+    types: [
+      { id:'maj',  sym:''     },
+      { id:'min',  sym:'m'    },
+      { id:'aug',  sym:'aug'  },
+      { id:'dim',  sym:'dim'  },
+      { id:'sus2', sym:'sus2' },
+      { id:'sus4', sym:'sus4' },
+    ]
+  },
+  {
+    id: 'seventh', name: '7th Chords',
+    ex: 'CM7 · Cm7 · C7 · Cm7♭5',
+    types: [
+      { id:'maj7',    sym:'M7'      },
+      { id:'min7',    sym:'m7'      },
+      { id:'dom7',    sym:'7'       },
+      { id:'hdim7',   sym:'m7♭5'   },
+      { id:'dim7',    sym:'dim7'    },
+      { id:'mMaj7',   sym:'mM7'     },
+      { id:'aug7',    sym:'aug7'    },
+      { id:'augMaj7', sym:'augM7'   },
+      { id:'7sus4',   sym:'7sus4'   },
+    ]
+  },
+  {
+    id: 'extended', name: 'Extended',
+    ex: 'CM9 · Cm11 · C13 · Cadd9 · C6/9',
+    types: [
+      { id:'maj9',  sym:'M9'    },
+      { id:'min9',  sym:'m9'    },
+      { id:'dom9',  sym:'9'     },
+      { id:'maj11', sym:'M11'   },
+      { id:'min11', sym:'m11'   },
+      { id:'dom11', sym:'11'    },
+      { id:'maj13', sym:'M13'   },
+      { id:'min13', sym:'m13'   },
+      { id:'dom13', sym:'13'    },
+      { id:'add9',  sym:'add9'  },
+      { id:'madd9', sym:'madd9' },
+      { id:'6',     sym:'6'     },
+      { id:'m6',    sym:'m6'    },
+      { id:'69',    sym:'6/9'   },
+    ]
+  },
+  {
+    id: 'altered', name: 'Altered',
+    ex: 'C7♭9 · C7#9 · C7#11 · Calt',
+    types: [
+      { id:'7b9',   sym:'7♭9'   },
+      { id:'7s9',   sym:'7#9'   },
+      { id:'7b5',   sym:'7♭5'   },
+      { id:'7s5',   sym:'7#5'   },
+      { id:'7s11',  sym:'7#11'  },
+      { id:'7b13',  sym:'7♭13'  },
+      { id:'7b9b5', sym:'7♭9♭5' },
+      { id:'7s9s5', sym:'7#9#5' },
+      { id:'alt',   sym:'alt'   },
+    ]
+  },
+];
+
+const ALL_TYPES = CATEGORIES.flatMap(c => c.types);
+
+const MAJ_SCALE = [0,2,4,5,7,9,11];
+const MIN_SCALE = [0,2,3,5,7,8,10];
+
+const KEYS = [
+  // Major — circle of fifths
+  { name:'C',  root:0,  mode:'maj', not:'sharp' },
+  { name:'G',  root:7,  mode:'maj', not:'sharp' },
+  { name:'D',  root:2,  mode:'maj', not:'sharp' },
+  { name:'A',  root:9,  mode:'maj', not:'sharp' },
+  { name:'E',  root:4,  mode:'maj', not:'sharp' },
+  { name:'B',  root:11, mode:'maj', not:'sharp' },
+  { name:'F#', root:6,  mode:'maj', not:'sharp' },
+  { name:'F',  root:5,  mode:'maj', not:'flat'  },
+  { name:'B♭', root:10, mode:'maj', not:'flat'  },
+  { name:'E♭', root:3,  mode:'maj', not:'flat'  },
+  { name:'A♭', root:8,  mode:'maj', not:'flat'  },
+  { name:'D♭', root:1,  mode:'maj', not:'flat'  },
+  { name:'G♭', root:6,  mode:'maj', not:'flat'  },
+  // Natural minor
+  { name:'Am', root:9,  mode:'min', not:'sharp' },
+  { name:'Em', root:4,  mode:'min', not:'sharp' },
+  { name:'Bm', root:11, mode:'min', not:'sharp' },
+  { name:'F#m',root:6,  mode:'min', not:'sharp' },
+  { name:'Dm', root:2,  mode:'min', not:'flat'  },
+  { name:'Gm', root:7,  mode:'min', not:'flat'  },
+  { name:'Cm', root:0,  mode:'min', not:'flat'  },
+  { name:'Fm', root:5,  mode:'min', not:'flat'  },
+  { name:'B♭m',root:10, mode:'min', not:'flat'  },
+];
+
+const PRESETS = [2, 3, 4, 5, 8, 10, 15, 20, 30];
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+
+const S = {
+  running:     false,
+  interval:    5,       // seconds
+  timeLeft:    5,
+  notation:    'sharp',
+  activeRoots: new Set([...Array(12).keys()]),
+  activeCats:  new Set(['triad', 'seventh']),
+  selectedKey: null,
+  pool:        [],
+  current:     null,
+  prev:        null,
+  tick:        null,
+};
+
+// ═══════════════════════════════════════════════
+// CHORD LOGIC
+// ═══════════════════════════════════════════════
+
+function noteName(n) {
+  return (S.notation === 'flat' ? FLAT : SHARP)[n % 12];
+}
+
+function chordLabel(c) {
+  return noteName(c.root) + c.type.sym;
+}
+
+function buildPool() {
+  const enabledTypes = new Set(
+    CATEGORIES
+      .filter(c => S.activeCats.has(c.id))
+      .flatMap(c => c.types.map(t => t.id))
+  );
+  S.pool = [];
+  for (const root of S.activeRoots) {
+    for (const type of ALL_TYPES) {
+      if (enabledTypes.has(type.id)) S.pool.push({ root, type });
+    }
+  }
+}
+
+function pickNext() {
+  if (!S.pool.length) return null;
+  let candidates = S.pool;
+  if (S.current && S.pool.length > 1) {
+    candidates = S.pool.filter(
+      c => !(c.root === S.current.root && c.type.id === S.current.type.id)
+    );
+    if (!candidates.length) candidates = S.pool;
+  }
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function advance() {
+  S.prev    = S.current;
+  S.current = pickNext();
+  renderChord();
+}
+
+// ═══════════════════════════════════════════════
+// TIMER
+// ═══════════════════════════════════════════════
+
+function startTimer() {
+  stopTimer();
+  S.timeLeft = S.interval;
+  renderProgress();
+  S.tick = setInterval(() => {
+    S.timeLeft = Math.max(0, S.timeLeft - 0.1);
+    if (S.timeLeft <= 0) {
+      S.timeLeft = S.interval;
+      advance();
+    }
+    renderProgress();
+  }, 100);
+}
+
+function stopTimer() {
+  clearInterval(S.tick);
+  S.tick = null;
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+
+const $current   = document.getElementById('chordCurrent');
+const $prev      = document.getElementById('chordPrev');
+const $barFill   = document.getElementById('barFill');
+const $timerLbl  = document.getElementById('timerLabel');
+const $timerNum  = document.getElementById('timerNum');
+const $poolBadge = document.getElementById('poolBadge');
+const $panelPool = document.getElementById('panelPool');
+const $startBtn  = document.getElementById('startBtn');
+const $skipBtn   = document.getElementById('skipBtn');
+
+function renderChord() {
+  $current.classList.add('fade');
+  setTimeout(() => {
+    $current.textContent = S.current ? chordLabel(S.current) : '—';
+    $prev.textContent    = S.prev    ? chordLabel(S.prev)    : '';
+    $current.classList.remove('fade');
+  }, 120);
+}
+
+function renderProgress() {
+  const pct = ((S.interval - S.timeLeft) / S.interval * 100).toFixed(2);
+  $barFill.style.width = pct + '%';
+
+  if (S.running) {
+    $timerLbl.textContent = 'Next chord in';
+    $timerNum.textContent = S.timeLeft.toFixed(1) + 's';
+  } else if (S.current) {
+    $timerLbl.textContent = 'Paused';
+    $timerNum.textContent = '';
+  } else {
+    $timerLbl.textContent = '—';
+    $timerNum.textContent = '';
+  }
+}
+
+function renderPoolCount() {
+  const n = S.pool.length;
+  const msg = n === 0
+    ? '⚠ No chords in pool — adjust filters'
+    : `${n} chords in active pool`;
+  $poolBadge.textContent = msg;
+  $poolBadge.className   = 'pool-badge' + (n === 0 ? ' warn' : '');
+  $panelPool.textContent = msg;
+  $panelPool.style.color = n === 0 ? 'var(--yellow)' : '';
+}
+
+function refreshPool() {
+  buildPool();
+  renderPoolCount();
+  // Auto-pause if pool empties while running
+  if (S.running && !S.pool.length) {
+    stopTimer();
+    S.running = false;
+    $startBtn.textContent = 'Start';
+    renderProgress();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════
+
+$startBtn.addEventListener('click', () => {
+  if (S.running) {
+    stopTimer();
+    S.running = false;
+    $startBtn.textContent = 'Resume';
+    renderProgress();
+  } else {
+    if (!S.pool.length) return;
+    S.running = true;
+    $startBtn.textContent = 'Pause';
+    if (!S.current) advance();
+    startTimer();
+  }
+});
+
+$skipBtn.addEventListener('click', () => {
+  if (!S.running) return;
+  S.timeLeft = S.interval;
+  advance();
+});
+
+// ═══════════════════════════════════════════════
+// SETTINGS PANEL
+// ═══════════════════════════════════════════════
+
+const $overlay = document.getElementById('overlay');
+const $panel   = document.getElementById('panel');
+
+function openPanel()  { $overlay.classList.add('open'); $panel.classList.add('open'); }
+function closePanel() { $overlay.classList.remove('open'); $panel.classList.remove('open'); }
+
+document.getElementById('settingsBtn').addEventListener('click', openPanel);
+document.getElementById('closeBtn').addEventListener('click', closePanel);
+$overlay.addEventListener('click', closePanel);
+
+// ── Interval presets ──────────────────────────
+const $intervalRow = document.getElementById('intervalRow');
+
+function setInterval_(sec) {
+  S.interval = sec;
+  document.querySelectorAll('#intervalRow .chip').forEach(b => b.classList.remove('on'));
+  if (S.running) { S.timeLeft = Math.min(S.timeLeft, sec); startTimer(); }
+}
+
+PRESETS.forEach(s => {
+  const btn = document.createElement('button');
+  btn.className = 'chip' + (s === S.interval ? ' on' : '');
+  btn.textContent = s + 's';
+  btn.addEventListener('click', () => {
+    setInterval_(s);
+    btn.classList.add('on');
+    document.getElementById('customSec').value = '';
+  });
+  $intervalRow.appendChild(btn);
+});
+
+document.getElementById('applyCustom').addEventListener('click', () => {
+  const val = parseFloat(document.getElementById('customSec').value);
+  if (!isNaN(val) && val >= 1 && val <= 300) {
+    setInterval_(val);
+  }
+});
+
+// ── Notation ──────────────────────────────────
+const $notSharp = document.getElementById('notSharp');
+const $notFlat  = document.getElementById('notFlat');
+
+function setNotation(not) {
+  S.notation = not;
+  $notSharp.classList.toggle('on', not === 'sharp');
+  $notFlat.classList.toggle('on',  not === 'flat');
+  // Update live display
+  if (S.current) $current.textContent = chordLabel(S.current);
+  if (S.prev)    $prev.textContent    = chordLabel(S.prev);
+  renderNoteGrid();
+}
+
+$notSharp.addEventListener('click', () => setNotation('sharp'));
+$notFlat.addEventListener('click',  () => setNotation('flat'));
+
+// ── Keys ──────────────────────────────────────
+const $keyGrid = document.getElementById('keyGrid');
+
+// "All" button
+const allKeyBtn = document.createElement('button');
+allKeyBtn.className = 'key-btn on';
+allKeyBtn.textContent = 'All';
+allKeyBtn.addEventListener('click', () => {
+  S.selectedKey = null;
+  S.activeRoots = new Set([...Array(12).keys()]);
+  document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
+  allKeyBtn.classList.add('on');
+  refreshPool();
+  renderNoteGrid();
+});
+$keyGrid.appendChild(allKeyBtn);
+
+KEYS.forEach(k => {
+  const btn = document.createElement('button');
+  btn.className = 'key-btn';
+  btn.textContent = k.name;
+  btn.addEventListener('click', () => {
+    S.selectedKey = k;
+    const scale = k.mode === 'min' ? MIN_SCALE : MAJ_SCALE;
+    S.activeRoots = new Set(scale.map(d => (k.root + d) % 12));
+    document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    setNotation(k.not);
+    refreshPool();
+    renderNoteGrid();
+  });
+  $keyGrid.appendChild(btn);
+});
+
+// ── Root notes ────────────────────────────────
+const $noteGrid = document.getElementById('noteGrid');
+
+function renderNoteGrid() {
+  $noteGrid.innerHTML = '';
+  const names = S.notation === 'flat' ? FLAT : SHARP;
+  SHARP.forEach((_, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'note-btn' + (S.activeRoots.has(idx) ? ' on' : '');
+    btn.textContent = names[idx];
+    btn.addEventListener('click', () => {
+      // Deselect key shortcut since user is customizing roots
+      S.selectedKey = null;
+      document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
+      allKeyBtn.classList.add('on');
+      if (S.activeRoots.has(idx)) { S.activeRoots.delete(idx); btn.classList.remove('on'); }
+      else                         { S.activeRoots.add(idx);    btn.classList.add('on');    }
+      refreshPool();
+    });
+    $noteGrid.appendChild(btn);
+  });
+}
+
+document.getElementById('allRoots').addEventListener('click', () => {
+  S.activeRoots = new Set([...Array(12).keys()]);
+  S.selectedKey = null;
+  document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
+  allKeyBtn.classList.add('on');
+  refreshPool();
+  renderNoteGrid();
+});
+
+document.getElementById('noRoots').addEventListener('click', () => {
+  S.activeRoots = new Set();
+  S.selectedKey = null;
+  document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
+  allKeyBtn.classList.add('on');
+  refreshPool();
+  renderNoteGrid();
+});
+
+// ── Chord categories ──────────────────────────
+const $catGrid = document.getElementById('catGrid');
+
+CATEGORIES.forEach(cat => {
+  const card = document.createElement('button');
+  card.className = 'cat-card' + (S.activeCats.has(cat.id) ? ' on' : '');
+  card.innerHTML = `<div class="cat-name">${cat.name}</div><div class="cat-ex">${cat.ex}</div>`;
+  card.addEventListener('click', () => {
+    if (S.activeCats.has(cat.id)) { S.activeCats.delete(cat.id); card.classList.remove('on'); }
+    else                           { S.activeCats.add(cat.id);    card.classList.add('on');    }
+    refreshPool();
+  });
+  $catGrid.appendChild(card);
+});
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+
+renderNoteGrid();
+refreshPool();
+renderProgress();
+</script>
+</body>
+</html>
