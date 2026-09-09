@@ -89,6 +89,56 @@
       letter-spacing: -3px;
       line-height: 1;
     }
+    .chord-current.pair {
+      font-size: clamp(38px, 10vw, 84px);
+      letter-spacing: -1px;
+    }
+    .key-badge {
+      display: none;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 12px;
+    }
+    .key-badge.visible { display: block; }
+    .chord-func {
+      font-size: clamp(15px, 4vw, 24px);
+      font-weight: 700;
+      color: var(--accent);
+      margin-top: 10px;
+      min-height: 26px;
+    }
+
+    /* Segmented control */
+    .seg {
+      display: flex;
+      gap: 3px;
+      padding: 3px;
+      background: var(--surf2);
+      border-radius: 9px;
+    }
+    .seg-btn {
+      flex: 1;
+      padding: 8px 10px;
+      border: none;
+      background: none;
+      color: var(--dim);
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s, color 0.15s;
+    }
+    .seg-btn.on { background: var(--accent); color: #fff; }
+
+    .submode {
+      padding: 12px 20px 0;
+      flex-shrink: 0;
+    }
     .scale-root {
       font-size: clamp(72px, 18vw, 140px);
       font-weight: 900;
@@ -371,6 +421,41 @@
       background: rgba(99,102,241,0.10);
     }
 
+    /* Sub-rows inside a category body */
+    .sub-row {
+      width: 100%;
+      margin-bottom: 9px;
+    }
+    .sub-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--dim);
+      margin-bottom: 5px;
+    }
+    .flavor-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .flavor-chip {
+      padding: 5px 12px;
+      border-radius: 16px;
+      font-size: 12px;
+      font-family: inherit;
+      background: var(--surf2);
+      color: var(--dim);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .flavor-chip.on { border-color: var(--green); color: var(--green); }
+
+    /* Key root selection (single-select, green) */
+    .note-btn.key-on {
+      border-color: var(--green);
+      background: rgba(16,185,129,0.12);
+      color: var(--green);
+    }
+
     .panel-pool {
       margin-top: 16px;
       font-size: 13px;
@@ -386,20 +471,30 @@
 
 <!-- ── HEADER ── -->
 <header class="header">
-  <div class="header-title">Chord Trainer</div>
+  <div class="header-title" data-i18n="appTitle">Chord Trainer</div>
   <button class="btn btn-icon" id="settingsBtn" aria-label="Settings">⚙</button>
 </header>
 
 <!-- ── MODE TABS ── -->
 <div class="mode-tabs">
-  <button class="mode-tab active" id="tabChords">Chords</button>
-  <button class="mode-tab"        id="tabScales">Scales</button>
+  <button class="mode-tab active" id="tabChords" data-i18n="tabChords">Chords</button>
+  <button class="mode-tab"        id="tabScales" data-i18n="tabScales">Scales</button>
+</div>
+
+<!-- ── CHORD SUB-MODE ── -->
+<div class="submode" id="submodeRow">
+  <div class="seg" id="chordModeSeg">
+    <button class="seg-btn on" data-m="random" data-i18n="modeRandom">Random Chords</button>
+    <button class="seg-btn"    data-m="key"    data-i18n="modeKey">Key Practice</button>
+  </div>
 </div>
 
 <!-- ── MAIN ── -->
 <main class="main">
   <div class="chord-wrap" id="chordWrap">
+    <div class="key-badge"    id="keyBadge"></div>
     <div class="chord-current" id="chordCurrent">Ready</div>
+    <div class="chord-func"   id="chordFunc"></div>
   </div>
   <div class="scale-wrap" id="scaleWrap">
     <div class="scale-root" id="scaleRoot"></div>
@@ -418,8 +513,8 @@
   </div>
 
   <div class="controls">
-    <button class="btn btn-secondary" id="skipBtn">Skip</button>
-    <button class="btn btn-primary"   id="startBtn">Start</button>
+    <button class="btn btn-secondary" id="skipBtn"  data-i18n="skip">Skip</button>
+    <button class="btn btn-primary"   id="startBtn" data-i18n="start">Start</button>
   </div>
 
   <div class="pool-badge" id="poolBadge"></div>
@@ -432,55 +527,92 @@
 <div class="panel" id="panel">
   <div class="panel-handle"></div>
   <div class="panel-header">
-    <div class="panel-title">Settings</div>
+    <div class="panel-title" data-i18n="settings">Settings</div>
     <button class="btn btn-icon" id="closeBtn">✕</button>
   </div>
 
+  <!-- Language -->
+  <div class="s-row">
+    <span class="s-label" data-i18n="language">Language</span>
+    <div class="chip-row" id="langRow">
+      <button class="chip on" data-lang="en">English</button>
+      <button class="chip"    data-lang="ko">한국어</button>
+    </div>
+  </div>
+
   <!-- Interval -->
-  <div class="s-row"><span class="s-label">Interval</span></div>
+  <div class="s-row"><span class="s-label" data-i18n="interval">Interval</span></div>
   <div class="chip-row" id="intervalRow"></div>
   <div class="custom-row">
-    <label for="customSec">Custom:</label>
-    <input type="number" id="customSec" class="num-input" min="1" max="300" placeholder="sec">
-    <button class="btn btn-secondary" id="applyCustom" style="padding:7px 14px;font-size:13px">Set</button>
+    <label for="customSec" data-i18n="custom">Custom:</label>
+    <input type="number" id="customSec" class="num-input" min="1" max="300">
+    <button class="btn btn-secondary" id="applyCustom" data-i18n="set" style="padding:7px 14px;font-size:13px">Set</button>
   </div>
 
-  <!-- Notation -->
-  <div class="s-row">
-    <span class="s-label">Notation</span>
-    <div class="chip-row">
-      <button class="chip on" id="notSharp">♯ Sharps</button>
-      <button class="chip"    id="notFlat">♭ Flats</button>
+  <!-- Notation (hidden in Key Practice — the key decides the spelling) -->
+  <div id="notationSection">
+    <div class="s-row">
+      <span class="s-label" data-i18n="notation">Notation</span>
+      <div class="chip-row">
+        <button class="chip on" id="notSharp" data-i18n="sharps">♯ Sharps</button>
+        <button class="chip"    id="notFlat"  data-i18n="flats">♭ Flats</button>
+      </div>
     </div>
   </div>
 
-  <!-- Key -->
-  <div class="s-row"><span class="s-label">Quick Key Select</span></div>
-  <div class="key-grid" id="keyGrid"></div>
+  <!-- Roots + Quick Key (random chord / scale modes) -->
+  <div id="rootSection">
+    <div class="s-row"><span class="s-label" data-i18n="quickKey">Quick Key Select</span></div>
+    <div class="key-grid" id="keyGrid"></div>
 
-  <!-- Roots -->
-  <div class="s-row">
-    <span class="s-label">Root Notes</span>
-    <div class="s-actions">
-      <button class="chip chip-sm" id="allRoots">All</button>
-      <button class="chip chip-sm" id="noRoots">None</button>
+    <div class="s-row">
+      <span class="s-label" data-i18n="rootNotes">Root Notes</span>
+      <div class="s-actions">
+        <button class="chip chip-sm" id="allRoots" data-i18n="all">All</button>
+        <button class="chip chip-sm" id="noRoots"  data-i18n="none">None</button>
+      </div>
     </div>
+    <div class="note-grid" id="noteGrid"></div>
   </div>
-  <div class="note-grid" id="noteGrid"></div>
 
-  <!-- Categories -->
-  <!-- Chord Types (chord mode only) -->
+  <!-- Chord Types (random chord mode only) -->
   <div id="chordTypesSection">
-    <div class="s-row"><span class="s-label">Chord Types</span></div>
+    <div class="s-row"><span class="s-label" data-i18n="chordTypes">Chord Types</span></div>
     <div id="catGrid"></div>
+  </div>
+
+  <!-- Key Practice (chord mode only) -->
+  <div id="keyPracticeSection" style="display:none">
+    <div class="s-row"><span class="s-label" data-i18n="key">Key</span></div>
+    <div class="note-grid" id="keyRootGrid"></div>
+    <div class="seg" id="keyQualSeg" style="margin-top:8px">
+      <button class="seg-btn on" data-q="major" data-i18n="major">Major</button>
+      <button class="seg-btn"    data-q="minor" data-i18n="minor">Minor</button>
+    </div>
+
+    <div class="s-row">
+      <span class="s-label" data-i18n="voicingAll">Voicing — All Groups</span>
+      <div class="chip-row" id="globalVoiRow">
+        <button class="chip"    data-v="tri" data-i18n="triads">Triads</button>
+        <button class="chip on" data-v="sev" data-i18n="sevenths">7ths</button>
+      </div>
+    </div>
+
+    <div class="s-row"><span class="s-label" data-i18n="chordFunctions">Chord Functions</span></div>
+    <div id="keyGroupGrid"></div>
+
+    <div class="s-row">
+      <span class="s-label" data-i18n="showFunction">Show Function</span>
+      <button class="chip on" id="showFuncToggle">On</button>
+    </div>
   </div>
 
   <!-- Scale Types (scale mode only) -->
   <div id="scaleTypesSection" style="display:none">
-    <div class="s-row"><span class="s-label">Scale Types</span></div>
+    <div class="s-row"><span class="s-label" data-i18n="scaleTypes">Scale Types</span></div>
     <div id="scaleCatGrid"></div>
     <div class="s-row">
-      <span class="s-label">Show Notes</span>
+      <span class="s-label" data-i18n="showNotes">Show Notes</span>
       <button class="chip" id="showNotesToggle">Off</button>
     </div>
   </div>
@@ -495,12 +627,12 @@
 // DATA
 // ═══════════════════════════════════════════════
 
-const SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SHARP = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 const FLAT  = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
 
 const CATEGORIES = [
   {
-    id: 'triad', name: 'Triads',
+    id: 'triad', name: 'Triads', ko: '3화음',
     ex: 'C · Cm · Caug · Cdim · Csus2',
     types: [
       { id:'maj',  sym:''     },
@@ -512,7 +644,7 @@ const CATEGORIES = [
     ]
   },
   {
-    id: 'seventh', name: '7th Chords',
+    id: 'seventh', name: '7th Chords', ko: '7화음',
     ex: 'CM7 · Cm7 · C7 · Cm7♭5',
     types: [
       { id:'maj7',    sym:'M7'      },
@@ -527,7 +659,7 @@ const CATEGORIES = [
     ]
   },
   {
-    id: 'extended', name: 'Extended',
+    id: 'extended', name: 'Extended', ko: '확장 화음',
     ex: 'CM9 · Cm11 · C13 · Cadd9 · C6/9',
     types: [
       { id:'maj9',  sym:'M9'    },
@@ -547,7 +679,7 @@ const CATEGORIES = [
     ]
   },
   {
-    id: 'altered', name: 'Altered',
+    id: 'altered', name: 'Altered', ko: '얼터드',
     ex: 'C7♭9 · C7#9 · C7#11 · Calt',
     types: [
       { id:'7b9',   sym:'7♭9'   },
@@ -568,24 +700,24 @@ const ALL_TYPES = CATEGORIES.flatMap(c => c.types);
 // ─── SCALE DATA ───────────────────────────────
 const SCALE_CATEGORIES = [
   {
-    id: 'basic', name: 'Basic',
+    id: 'basic', name: 'Basic', ko: '기본',
     scales: [
-      { id: 'major',    name: 'Major',          intervals: [0,2,4,5,7,9,11] },
-      { id: 'nat_min',  name: 'Natural Minor',   intervals: [0,2,3,5,7,8,10] },
-      { id: 'har_min',  name: 'Harmonic Minor',  intervals: [0,2,3,5,7,8,11] },
-      { id: 'mel_min',  name: 'Melodic Minor',   intervals: [0,2,3,5,7,9,11] },
+      { id: 'major',    name: 'Major',          ko: '장음계',     intervals: [0,2,4,5,7,9,11] },
+      { id: 'nat_min',  name: 'Natural Minor',  ko: '자연단음계', intervals: [0,2,3,5,7,8,10] },
+      { id: 'har_min',  name: 'Harmonic Minor', ko: '화성단음계', intervals: [0,2,3,5,7,8,11] },
+      { id: 'mel_min',  name: 'Melodic Minor',  ko: '가락단음계', intervals: [0,2,3,5,7,9,11] },
     ]
   },
   {
-    id: 'modes', name: 'Church Modes',
+    id: 'modes', name: 'Church Modes', ko: '교회 선법',
     scales: [
-      { id: 'ionian',     name: 'Ionian',     intervals: [0,2,4,5,7,9,11] },
-      { id: 'dorian',     name: 'Dorian',     intervals: [0,2,3,5,7,9,10] },
-      { id: 'phrygian',   name: 'Phrygian',   intervals: [0,1,3,5,7,8,10] },
-      { id: 'lydian',     name: 'Lydian',     intervals: [0,2,4,6,7,9,11] },
-      { id: 'mixolydian', name: 'Mixolydian', intervals: [0,2,4,5,7,9,10] },
-      { id: 'aeolian',    name: 'Aeolian',    intervals: [0,2,3,5,7,8,10] },
-      { id: 'locrian',    name: 'Locrian',    intervals: [0,1,3,5,6,8,10] },
+      { id: 'ionian',     name: 'Ionian',     ko: '이오니안',   intervals: [0,2,4,5,7,9,11] },
+      { id: 'dorian',     name: 'Dorian',     ko: '도리안',     intervals: [0,2,3,5,7,9,10] },
+      { id: 'phrygian',   name: 'Phrygian',   ko: '프리지안',   intervals: [0,1,3,5,7,8,10] },
+      { id: 'lydian',     name: 'Lydian',     ko: '리디안',     intervals: [0,2,4,6,7,9,11] },
+      { id: 'mixolydian', name: 'Mixolydian', ko: '믹솔리디안', intervals: [0,2,4,5,7,9,10] },
+      { id: 'aeolian',    name: 'Aeolian',    ko: '에올리안',   intervals: [0,2,3,5,7,8,10] },
+      { id: 'locrian',    name: 'Locrian',    ko: '로크리안',   intervals: [0,1,3,5,6,8,10] },
     ]
   },
 ];
@@ -613,11 +745,223 @@ const KEYS = [
 
 const PRESETS = [2, 3, 4, 5, 8, 10, 15, 20, 30];
 
+// ─── I18N ─────────────────────────────────────
+const I18N = {
+  en: {
+    appTitle:'Chord Trainer', tabChords:'Chords', tabScales:'Scales',
+    modeRandom:'Random Chords', modeKey:'Key Practice',
+    skip:'Skip', start:'Start', pause:'Pause', resume:'Resume',
+    ready:'Ready', paused:'Paused',
+    nextChord:'Next chord in', nextScale:'Next scale in',
+    settings:'Settings', language:'Language',
+    interval:'Interval', custom:'Custom:', set:'Set', secPlaceholder:'sec',
+    notation:'Notation', sharps:'♯ Sharps', flats:'♭ Flats',
+    quickKey:'Quick Key Select', rootNotes:'Root Notes', all:'All', none:'None',
+    chordTypes:'Chord Types', scaleTypes:'Scale Types', showNotes:'Show Notes',
+    key:'Key', major:'Major', minor:'Minor',
+    voicingAll:'Voicing — All Groups', voicing:'Voicing',
+    triads:'Triads', sevenths:'7ths',
+    chordFunctions:'Chord Functions', showFunction:'Show Function',
+    on:'On', off:'Off',
+    display:'Display', asPair:'As Pair', separate:'Separate', scaleRow:'Scale',
+    keyBadge: (note, q) => `Key: ${note} ${q === 'major' ? 'major' : 'minor'}`,
+    poolMsg: (n, isScale) => {
+      const u = isScale ? 'scale' : 'chord';
+      return n === 0
+        ? `⚠ No ${u}s in pool — adjust filters`
+        : `${n} ${u}${n !== 1 ? 's' : ''} in active pool`;
+    },
+  },
+  ko: {
+    appTitle:'코드 트레이너', tabChords:'코드', tabScales:'스케일',
+    modeRandom:'랜덤 코드', modeKey:'키 연습',
+    skip:'건너뛰기', start:'시작', pause:'일시정지', resume:'계속',
+    ready:'준비', paused:'멈춤',
+    nextChord:'다음 코드까지', nextScale:'다음 스케일까지',
+    settings:'설정', language:'언어',
+    interval:'전환 간격', custom:'직접 입력:', set:'적용', secPlaceholder:'초',
+    notation:'표기법', sharps:'♯ 샤프', flats:'♭ 플랫',
+    quickKey:'조성 빠른 선택', rootNotes:'근음', all:'전체', none:'해제',
+    chordTypes:'코드 종류', scaleTypes:'스케일 종류', showNotes:'구성음 표시',
+    key:'조성', major:'장조', minor:'단조',
+    voicingAll:'보이싱 — 전체 그룹', voicing:'보이싱',
+    triads:'3화음', sevenths:'7화음',
+    chordFunctions:'기능별 코드', showFunction:'기능 표기',
+    on:'켬', off:'끔',
+    display:'표시 방식', asPair:'묶어서', separate:'따로', scaleRow:'음계',
+    keyBadge: (note, q) => `조성: ${note} ${q === 'major' ? '장조' : '단조'}`,
+    poolMsg: (n, isScale) => {
+      const u = isScale ? '스케일' : '코드';
+      return n === 0
+        ? `⚠ 풀이 비어 있습니다 — 설정을 조정하세요`
+        : `현재 풀: ${u} ${n}개`;
+    },
+  },
+};
+
+function t(k)      { return I18N[S.lang][k]; }
+function nm(obj)   { return S.lang === 'ko' && obj.ko ? obj.ko : obj.name; }
+
+// ─── KEY PRACTICE ─────────────────────────────
+// Chord symbol lookup, reusing the Random-mode type table.
+const TYPE_SYM = Object.fromEntries(ALL_TYPES.map(t => [t.id, t.sym]));
+
+// Keys notated with flats, by tonic pitch class
+const FLAT_MAJOR = new Set([5, 10, 3, 8, 1, 6]);
+const FLAT_MINOR = new Set([2, 7, 0, 5, 10, 3]);
+
+const KEY_GROUPS = [
+  { id:'diatonic',  name:'Diatonic',              ko:'다이어토닉'         },
+  { id:'secondary', name:'Secondary Dominants',   ko:'세컨더리 도미넌트'  },
+  { id:'related',   name:'Related II–V',          ko:'관련 II–V', pair:true },
+  { id:'subdom',    name:'Substitute Dominants',  ko:'대리 도미넌트'      },
+  { id:'modal',     name:'Modal Interchange',     ko:'모달 인터체인지'    },
+  { id:'dimin',     name:'Diminished',            ko:'디미니시드'         },
+  { id:'sus',       name:'Sus & Cadential',       ko:'Sus 계열'           },
+];
+
+const MINOR_FLAVORS = [
+  { id:'natural',  name:'Natural',  ko:'자연' },
+  { id:'harmonic', name:'Harmonic', ko:'화성' },
+  { id:'melodic',  name:'Melodic',  ko:'가락' },
+];
+
+// Item: { id, label, deg, tri:[typeId, roman]|null, sev:[typeId, roman]|null }
+// Pair: { id, label, a:{deg,tri,sev}, b:{deg,tri,sev}, romanTri, romanSev }
+const KEY_TABLES = {
+  major: {
+    diatonic: [
+      { id:'I',   label:'I',    deg:0,  tri:['maj','I'],    sev:['maj7','IM7']    },
+      { id:'ii',  label:'ii',   deg:2,  tri:['min','ii'],   sev:['min7','ii7']    },
+      { id:'iii', label:'iii',  deg:4,  tri:['min','iii'],  sev:['min7','iii7']   },
+      { id:'IV',  label:'IV',   deg:5,  tri:['maj','IV'],   sev:['maj7','IVM7']   },
+      { id:'V',   label:'V',    deg:7,  tri:['maj','V'],    sev:['dom7','V7']     },
+      { id:'vi',  label:'vi',   deg:9,  tri:['min','vi'],   sev:['min7','vi7']    },
+      { id:'vii', label:'vii°', deg:11, tri:['dim','vii°'], sev:['hdim7','viiø7'] },
+    ],
+    secondary: [
+      { id:'V/ii',  label:'V/ii',  deg:9,  tri:['maj','V/ii'],  sev:['dom7','V7/ii']  },
+      { id:'V/iii', label:'V/iii', deg:11, tri:['maj','V/iii'], sev:['dom7','V7/iii'] },
+      { id:'V/IV',  label:'V/IV',  deg:0,  tri:['maj','V/IV'],  sev:['dom7','V7/IV']  },
+      { id:'V/V',   label:'V/V',   deg:2,  tri:['maj','V/V'],   sev:['dom7','V7/V']   },
+      { id:'V/vi',  label:'V/vi',  deg:4,  tri:['maj','V/vi'],  sev:['dom7','V7/vi']  },
+    ],
+    related: [
+      { id:'→ii',  label:'→ ii',  a:{deg:4,  tri:'dim', sev:'hdim7'}, b:{deg:9,  tri:'maj', sev:'dom7'}, romanTri:'ii°–V / ii',  romanSev:'iiø7–V7 / ii'  },
+      { id:'→iii', label:'→ iii', a:{deg:6,  tri:'dim', sev:'hdim7'}, b:{deg:11, tri:'maj', sev:'dom7'}, romanTri:'ii°–V / iii', romanSev:'iiø7–V7 / iii' },
+      { id:'→IV',  label:'→ IV',  a:{deg:7,  tri:'min', sev:'min7' }, b:{deg:0,  tri:'maj', sev:'dom7'}, romanTri:'ii–V / IV',   romanSev:'ii7–V7 / IV'   },
+      { id:'→V',   label:'→ V',   a:{deg:9,  tri:'min', sev:'min7' }, b:{deg:2,  tri:'maj', sev:'dom7'}, romanTri:'ii–V / V',    romanSev:'ii7–V7 / V'    },
+      { id:'→vi',  label:'→ vi',  a:{deg:11, tri:'dim', sev:'hdim7'}, b:{deg:4,  tri:'maj', sev:'dom7'}, romanTri:'ii°–V / vi',  romanSev:'iiø7–V7 / vi'  },
+    ],
+    subdom: [
+      { id:'sub/I',   label:'subV/I',   deg:1,  acc:'flat', tri:['maj','subV/I'],   sev:['dom7','subV7/I']   },
+      { id:'sub/ii',  label:'subV/ii',  deg:3,  acc:'flat', tri:['maj','subV/ii'],  sev:['dom7','subV7/ii']  },
+      { id:'sub/iii', label:'subV/iii', deg:5,  acc:'flat', tri:['maj','subV/iii'], sev:['dom7','subV7/iii'] },
+      { id:'sub/IV',  label:'subV/IV',  deg:6,  acc:'flat', tri:['maj','subV/IV'],  sev:['dom7','subV7/IV']  },
+      { id:'sub/V',   label:'subV/V',   deg:8,  acc:'flat', tri:['maj','subV/V'],   sev:['dom7','subV7/V']   },
+      { id:'sub/vi',  label:'subV/vi',  deg:10, acc:'flat', tri:['maj','subV/vi'],  sev:['dom7','subV7/vi']  },
+    ],
+    modal: [
+      { id:'i',     label:'i',     deg:0,              tri:['min','i'],     sev:['min7','i7']       },
+      { id:'iiø',   label:'iiø',   deg:2,              tri:['dim','ii°'],   sev:['hdim7','iiø7']    },
+      { id:'bIII',  label:'♭III',  deg:3,  acc:'flat', tri:['maj','♭III'],  sev:['maj7','♭IIIM7']   },
+      { id:'iv',    label:'iv',    deg:5,              tri:['min','iv'],    sev:['min7','iv7']      },
+      { id:'v',     label:'v',     deg:7,              tri:['min','v'],     sev:['min7','v7']       },
+      { id:'bVI',   label:'♭VI',   deg:8,  acc:'flat', tri:['maj','♭VI'],   sev:['maj7','♭VIM7']    },
+      { id:'bVII',  label:'♭VII',  deg:10, acc:'flat', tri:['maj','♭VII'],  sev:['dom7','♭VII7']    },
+      { id:'bII',   label:'♭II',   deg:1,  acc:'flat', tri:['maj','♭II'],   sev:['maj7','♭IIM7']    },
+    ],
+    dimin: [
+      { id:'#i',   label:'♯i°',   deg:1,  acc:'sharp', tri:['dim','♯i°'],   sev:['dim7','♯i°7']   },
+      { id:'#ii',  label:'♯ii°',  deg:3,  acc:'sharp', tri:['dim','♯ii°'],  sev:['dim7','♯ii°7']  },
+      { id:'#iv',  label:'♯iv°',  deg:6,  acc:'sharp', tri:['dim','♯iv°'],  sev:['dim7','♯iv°7']  },
+      { id:'#v',   label:'♯v°',   deg:8,  acc:'sharp', tri:['dim','♯v°'],   sev:['dim7','♯v°7']   },
+      { id:'vii°', label:'vii°',  deg:11,              tri:['dim','vii°'],  sev:['dim7','vii°7']  },
+    ],
+    sus: [
+      { id:'Isus2',  label:'Isus2',  deg:0, tri:['sus2','Isus2'],  sev:null              },
+      { id:'Isus4',  label:'Isus4',  deg:0, tri:['sus4','Isus4'],  sev:null              },
+      { id:'IVsus2', label:'IVsus2', deg:5, tri:['sus2','IVsus2'], sev:null              },
+      { id:'Vsus4',  label:'Vsus4',  deg:7, tri:['sus4','Vsus4'],  sev:['7sus4','V7sus4'] },
+    ],
+  },
+  minor: {
+    diatonic: [
+      // Natural
+      { id:'n-i',    label:'i',     deg:0,  flavor:'natural', tri:['min','i'],     sev:['min7','i7']      },
+      { id:'n-ii',   label:'ii°',   deg:2,  flavor:'natural', tri:['dim','ii°'],   sev:['hdim7','iiø7']   },
+      { id:'n-bIII', label:'♭III',  deg:3,  flavor:'natural', tri:['maj','♭III'],  sev:['maj7','♭IIIM7']  },
+      { id:'n-iv',   label:'iv',    deg:5,  flavor:'natural', tri:['min','iv'],    sev:['min7','iv7']     },
+      { id:'n-v',    label:'v',     deg:7,  flavor:'natural', tri:['min','v'],     sev:['min7','v7']      },
+      { id:'n-bVI',  label:'♭VI',   deg:8,  flavor:'natural', tri:['maj','♭VI'],   sev:['maj7','♭VIM7']   },
+      { id:'n-bVII', label:'♭VII',  deg:10, flavor:'natural', tri:['maj','♭VII'],  sev:['dom7','♭VII7']   },
+      // Harmonic
+      { id:'h-i',    label:'i',      deg:0,  flavor:'harmonic', tri:['min','i'],       sev:['mMaj7','i(M7)']      },
+      { id:'h-ii',   label:'ii°',    deg:2,  flavor:'harmonic', tri:['dim','ii°'],     sev:['hdim7','iiø7']       },
+      { id:'h-bIII', label:'♭III+',  deg:3,  flavor:'harmonic', tri:['aug','♭III+'],   sev:['augMaj7','♭III+M7']  },
+      { id:'h-iv',   label:'iv',     deg:5,  flavor:'harmonic', tri:['min','iv'],      sev:['min7','iv7']         },
+      { id:'h-V',    label:'V',      deg:7,  flavor:'harmonic', tri:['maj','V'],       sev:['dom7','V7']          },
+      { id:'h-bVI',  label:'♭VI',    deg:8,  flavor:'harmonic', tri:['maj','♭VI'],     sev:['maj7','♭VIM7']       },
+      { id:'h-vii',  label:'vii°',   deg:11, flavor:'harmonic', acc:'sharp', tri:['dim','vii°'], sev:['dim7','vii°7']   },
+      // Melodic
+      { id:'m-i',    label:'i',      deg:0,  flavor:'melodic', tri:['min','i'],       sev:['mMaj7','i(M7)']      },
+      { id:'m-ii',   label:'ii',     deg:2,  flavor:'melodic', tri:['min','ii'],      sev:['min7','ii7']         },
+      { id:'m-bIII', label:'♭III+',  deg:3,  flavor:'melodic', tri:['aug','♭III+'],   sev:['augMaj7','♭III+M7']  },
+      { id:'m-IV',   label:'IV',     deg:5,  flavor:'melodic', tri:['maj','IV'],      sev:['dom7','IV7']         },
+      { id:'m-V',    label:'V',      deg:7,  flavor:'melodic', tri:['maj','V'],       sev:['dom7','V7']          },
+      { id:'m-vi',   label:'vi°',    deg:9,  flavor:'melodic', tri:['dim','vi°'],     sev:['hdim7','viø7']       },
+      { id:'m-vii',  label:'vii°',   deg:11, flavor:'melodic', acc:'sharp', tri:['dim','vii°'], sev:['hdim7','viiø7']  },
+    ],
+    secondary: [
+      { id:'V/iv',   label:'V/iv',   deg:0,  tri:['maj','V/iv'],   sev:['dom7','V7/iv']   },
+      { id:'V/v',    label:'V/v',    deg:2,  tri:['maj','V/v'],    sev:['dom7','V7/v']    },
+      { id:'V/bVI',  label:'V/♭VI',  deg:3,  tri:['maj','V/♭VI'],  sev:['dom7','V7/♭VI']  },
+      { id:'V/bVII', label:'V/♭VII', deg:5,  tri:['maj','V/♭VII'], sev:['dom7','V7/♭VII'] },
+      { id:'V/bIII', label:'V/♭III', deg:10, tri:['maj','V/♭III'], sev:['dom7','V7/♭III'] },
+    ],
+    related: [
+      { id:'→iv',   label:'→ iv',   a:{deg:7,  tri:'dim', sev:'hdim7'}, b:{deg:0,  tri:'maj', sev:'dom7'}, romanTri:'ii°–V / iv',  romanSev:'iiø7–V7 / iv'   },
+      { id:'→v',    label:'→ v',    a:{deg:9,  tri:'dim', sev:'hdim7'}, b:{deg:2,  tri:'maj', sev:'dom7'}, romanTri:'ii°–V / v',   romanSev:'iiø7–V7 / v'    },
+      { id:'→bVI',  label:'→ ♭VI',  a:{deg:10, tri:'min', sev:'min7' }, b:{deg:3,  tri:'maj', sev:'dom7'}, romanTri:'ii–V / ♭VI',  romanSev:'ii7–V7 / ♭VI'   },
+      { id:'→bVII', label:'→ ♭VII', a:{deg:0,  tri:'min', sev:'min7' }, b:{deg:5,  tri:'maj', sev:'dom7'}, romanTri:'ii–V / ♭VII', romanSev:'ii7–V7 / ♭VII'  },
+      { id:'→bIII', label:'→ ♭III', a:{deg:5,  tri:'min', sev:'min7' }, b:{deg:10, tri:'maj', sev:'dom7'}, romanTri:'ii–V / ♭III', romanSev:'ii7–V7 / ♭III'  },
+    ],
+    subdom: [
+      { id:'sub/i',    label:'subV/i',    deg:1,  acc:'flat', tri:['maj','subV/i'],    sev:['dom7','subV7/i']    },
+      { id:'sub/iv',   label:'subV/iv',   deg:6,  acc:'flat', tri:['maj','subV/iv'],   sev:['dom7','subV7/iv']   },
+      { id:'sub/v',    label:'subV/v',    deg:8,  acc:'flat', tri:['maj','subV/v'],    sev:['dom7','subV7/v']    },
+      { id:'sub/bVI',  label:'subV/♭VI',  deg:9,  acc:'flat', tri:['maj','subV/♭VI'],  sev:['dom7','subV7/♭VI']  },
+      { id:'sub/bVII', label:'subV/♭VII', deg:11, acc:'flat', tri:['maj','subV/♭VII'], sev:['dom7','subV7/♭VII'] },
+      { id:'sub/bIII', label:'subV/♭III', deg:4,  acc:'flat', tri:['maj','subV/♭III'], sev:['dom7','subV7/♭III'] },
+    ],
+    modal: [
+      { id:'I',   label:'I',    deg:0,             tri:['maj','I'],   sev:['maj7','IM7']   },
+      { id:'ii',  label:'ii',   deg:2,             tri:['min','ii'],  sev:['min7','ii7']   },
+      { id:'IV',  label:'IV',   deg:5,             tri:['maj','IV'],  sev:['dom7','IV7']   },
+      { id:'vi',  label:'vi',   deg:9,             tri:['min','vi'],  sev:['min7','vi7']   },
+      { id:'bII', label:'♭II',  deg:1, acc:'flat', tri:['maj','♭II'], sev:['maj7','♭IIM7'] },
+    ],
+    dimin: [
+      { id:'#i',   label:'♯i°',  deg:1,  acc:'sharp', tri:['dim','♯i°'],  sev:['dim7','♯i°7']  },
+      { id:'#iv',  label:'♯iv°', deg:6,  acc:'sharp', tri:['dim','♯iv°'], sev:['dim7','♯iv°7'] },
+      { id:'vii°', label:'vii°', deg:11, acc:'sharp', tri:['dim','vii°'], sev:['dim7','vii°7'] },
+    ],
+    sus: [
+      // sus chords have no third, so no major/minor quality — uppercase throughout
+      { id:'isus2',  label:'Isus2',  deg:0, tri:['sus2','Isus2'],  sev:null               },
+      { id:'isus4',  label:'Isus4',  deg:0, tri:['sus4','Isus4'],  sev:null               },
+      { id:'ivsus4', label:'IVsus4', deg:5, tri:['sus4','IVsus4'], sev:null               },
+      { id:'Vsus4',  label:'Vsus4',  deg:7, tri:['sus4','Vsus4'],  sev:['7sus4','V7sus4'] },
+    ],
+  },
+};
+
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
 
 const S = {
+  lang:        (navigator.language || 'en').startsWith('ko') ? 'ko' : 'en',
   running:     false,
   interval:    5,
   timeLeft:    5,
@@ -637,6 +981,27 @@ const S = {
   pool:        [],
   current:     null,
   tick:        null,
+
+  // ── Key Practice ──
+  chordMode:    'random',   // 'random' | 'key'
+  keyRoot:      0,
+  keyQuality:   'major',    // 'major' | 'minor'
+  minorFlavors: new Set(['harmonic']),
+  // Per-quality selection: { major: {groupId: Set}, minor: {...} }
+  keySel: {
+    major: Object.fromEntries(KEY_GROUPS.map(g => [
+      g.id,
+      new Set(g.id === 'diatonic' ? KEY_TABLES.major.diatonic.map(i => i.id) : [])
+    ])),
+    minor: Object.fromEntries(KEY_GROUPS.map(g => [
+      g.id,
+      new Set(g.id === 'diatonic' ? KEY_TABLES.minor.diatonic.map(i => i.id) : [])
+    ])),
+  },
+  // Per group: a non-empty subset of {'tri','sev'}
+  groupVoicing: Object.fromEntries(KEY_GROUPS.map(g => [g.id, new Set(['sev'])])),
+  pairMode:     'pair',     // 'pair' | 'separate'
+  showFunction: true,
 };
 
 // ═══════════════════════════════════════════════
@@ -651,18 +1016,130 @@ function chordLabel(c) {
   return noteName(c.root) + c.type.sym;
 }
 
+// Which pool are we building? 'scale' | 'key' | 'random'
+function activeMode() {
+  if (S.mode === 'scale') return 'scale';
+  return S.chordMode === 'key' ? 'key' : 'random';
+}
+
+// Items of a key group, with the minor-flavor filter applied.
+//
+// The three minor scales overlap, so with more than one enabled the same chord
+// can appear several times (iv is identical in natural and harmonic). Collapse
+// those, keeping the first in table order (natural → harmonic → melodic).
+// Whether two entries collide depends on the active voicing: harmonic i and
+// natural i are the same triad but differ as 7ths — i(M7) vs i7.
+function itemsFor(groupId) {
+  const items = (KEY_TABLES[S.keyQuality][groupId] || [])
+    .filter(it => !it.flavor || S.minorFlavors.has(it.flavor));
+
+  if (!items.some(it => it.flavor)) return items;
+
+  const voi  = S.groupVoicing[groupId];
+  const seen = new Set();
+  return items.filter(it => {
+    const k = [
+      it.deg,
+      voi.has('tri') && it.tri ? it.tri[0] : '',
+      voi.has('sev') && it.sev ? it.sev[0] : '',
+    ].join('|');
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
+// Chips normally carry a fixed roman numeral. Minor diatonic entries are
+// labelled from the active voicing instead, so survivors of the dedup above
+// stay tellable apart (i7 vs i(M7), vii°7 vs viiø7).
+function itemLabel(groupId, it) {
+  if (!it.flavor) return it.label;
+  const voi = S.groupVoicing[groupId];
+  if (voi.has('sev') && it.sev) return it.sev[1];
+  return it.tri ? it.tri[1] : it.label;
+}
+
+// Borrowed and substitute chords keep their own accidental regardless of the
+// key's notation — ♭III in C major is E♭M7, never D♯M7.
+function noteNameAcc(n, acc) {
+  if (acc === 'flat')  return FLAT[n % 12];
+  if (acc === 'sharp') return SHARP[n % 12];
+  return noteName(n);
+}
+
+function buildKeyPool() {
+  const out = [];
+  for (const g of KEY_GROUPS) {
+    const sel  = S.keySel[S.keyQuality][g.id];
+    const voi  = S.groupVoicing[g.id];
+    const want = ['tri', 'sev'].filter(v => voi.has(v));
+    // Two entries kept apart by their 7th can still share a triad — natural i
+    // and harmonic i are both Am. Emit each chord once per group.
+    const seen = new Set();
+
+    for (const it of itemsFor(g.id)) {
+      if (!sel.has(it.id)) continue;
+
+      for (const v of want) {
+        if (g.pair) {
+          const ta = it.a[v], tb = it.b[v];
+          const roman = v === 'tri' ? it.romanTri : it.romanSev;
+          const ra = (S.keyRoot + it.a.deg) % 12;
+          const rb = (S.keyRoot + it.b.deg) % 12;
+          if (S.pairMode === 'pair') {
+            out.push({
+              kind: 'pair', roman,
+              a: { root: ra, typeId: ta }, b: { root: rb, typeId: tb },
+              uid: `k|${g.id}|${it.id}|${v}`,
+            });
+          } else {
+            const [r1, r2] = roman.split(' / ')[0].split('–');
+            const tgt = roman.split(' / ')[1];
+            out.push({ kind:'keychord', root: ra, typeId: ta, roman: `${r1} / ${tgt}`, uid:`k|${g.id}|${it.id}|${v}|a` });
+            out.push({ kind:'keychord', root: rb, typeId: tb, roman: `${r2} / ${tgt}`, uid:`k|${g.id}|${it.id}|${v}|b` });
+          }
+        } else {
+          const spec = it[v];
+          if (!spec) continue;
+          const root = (S.keyRoot + it.deg) % 12;
+          const dedup = `${root}|${spec[0]}`;
+          if (seen.has(dedup)) continue;
+          seen.add(dedup);
+          out.push({
+            kind: 'keychord',
+            root,
+            typeId: spec[0],
+            roman:  spec[1],
+            acc:    it.acc || null,
+            uid: `k|${g.id}|${it.id}|${v}`,
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 function buildPool() {
-  S.pool = [];
-  if (S.mode === 'chord') {
+  const m = activeMode();
+  if (m === 'key') {
+    S.pool = buildKeyPool();
+  } else if (m === 'scale') {
+    S.pool = [];
     for (const root of S.activeRoots) {
-      for (const type of ALL_TYPES) {
-        if (S.activeTypes.has(type.id)) S.pool.push({ root, type });
+      for (const scale of ALL_SCALES) {
+        if (S.activeScales.has(scale.id)) {
+          S.pool.push({ kind:'scale', root, scale, uid:`s|${root}|${scale.id}` });
+        }
       }
     }
   } else {
+    S.pool = [];
     for (const root of S.activeRoots) {
-      for (const scale of ALL_SCALES) {
-        if (S.activeScales.has(scale.id)) S.pool.push({ root, scale });
+      for (const type of ALL_TYPES) {
+        if (S.activeTypes.has(type.id)) {
+          S.pool.push({ kind:'chord', root, type, uid:`r|${root}|${type.id}` });
+        }
       }
     }
   }
@@ -672,15 +1149,7 @@ function pickNext() {
   if (!S.pool.length) return null;
   let candidates = S.pool;
   if (S.current && S.pool.length > 1) {
-    if (S.mode === 'chord') {
-      candidates = S.pool.filter(
-        c => !(c.root === S.current.root && c.type.id === S.current.type.id)
-      );
-    } else {
-      candidates = S.pool.filter(
-        c => !(c.root === S.current.root && c.scale.id === S.current.scale.id)
-      );
-    }
+    candidates = S.pool.filter(c => c.uid !== S.current.uid);
     if (!candidates.length) candidates = S.pool;
   }
   return candidates[Math.floor(Math.random() * candidates.length)];
@@ -721,6 +1190,8 @@ function stopTimer() {
 const $chordWrap  = document.getElementById('chordWrap');
 const $scaleWrap  = document.getElementById('scaleWrap');
 const $current    = document.getElementById('chordCurrent');
+const $keyBadge   = document.getElementById('keyBadge');
+const $chordFunc  = document.getElementById('chordFunc');
 const $scaleRoot  = document.getElementById('scaleRoot');
 const $scaleName  = document.getElementById('scaleName');
 const $scaleNotes = document.getElementById('scaleNotes');
@@ -736,7 +1207,25 @@ function renderItem() {
   if (S.mode === 'chord') {
     $chordWrap.classList.add('fade');
     setTimeout(() => {
-      $current.textContent = S.current ? chordLabel(S.current) : 'Ready';
+      const c = S.current;
+      let text = t('ready'), func = '', isPair = false;
+
+      if (c) {
+        if (c.kind === 'pair') {
+          text = `${noteName(c.a.root)}${TYPE_SYM[c.a.typeId]} → ${noteName(c.b.root)}${TYPE_SYM[c.b.typeId]}`;
+          func = c.roman;
+          isPair = true;
+        } else if (c.kind === 'keychord') {
+          text = noteNameAcc(c.root, c.acc) + TYPE_SYM[c.typeId];
+          func = c.roman;
+        } else {
+          text = chordLabel(c);
+        }
+      }
+
+      $current.textContent = text;
+      $current.classList.toggle('pair', isPair);
+      $chordFunc.textContent = (S.chordMode === 'key' && S.showFunction) ? func : '';
       $chordWrap.classList.remove('fade');
     }, 120);
   } else {
@@ -744,13 +1233,13 @@ function renderItem() {
     setTimeout(() => {
       if (S.current) {
         $scaleRoot.textContent  = noteName(S.current.root);
-        $scaleName.textContent  = S.current.scale.name;
+        $scaleName.textContent  = nm(S.current.scale);
         $scaleNotes.textContent = S.showNotes
           ? S.current.scale.intervals.map(i => noteName((S.current.root + i) % 12)).join(' · ')
           : '';
       } else {
         $scaleRoot.textContent  = '';
-        $scaleName.textContent  = 'Ready';
+        $scaleName.textContent  = t('ready');
         $scaleNotes.textContent = '';
       }
       $scaleWrap.classList.remove('fade');
@@ -763,10 +1252,10 @@ function renderProgress() {
   $barFill.style.width = pct + '%';
 
   if (S.running) {
-    $timerLbl.textContent = S.mode === 'chord' ? 'Next chord in' : 'Next scale in';
+    $timerLbl.textContent = S.mode === 'chord' ? t('nextChord') : t('nextScale');
     $timerNum.textContent = S.timeLeft.toFixed(1) + 's';
   } else if (S.current) {
-    $timerLbl.textContent = 'Paused';
+    $timerLbl.textContent = t('paused');
     $timerNum.textContent = '';
   } else {
     $timerLbl.textContent = '—';
@@ -775,11 +1264,8 @@ function renderProgress() {
 }
 
 function renderPoolCount() {
-  const n    = S.pool.length;
-  const unit = S.mode === 'chord' ? 'chord' : 'scale';
-  const msg  = n === 0
-    ? `⚠ No ${unit}s in pool — adjust filters`
-    : `${n} ${unit}${n !== 1 ? 's' : ''} in active pool`;
+  const n   = S.pool.length;
+  const msg = t('poolMsg')(n, S.mode === 'scale');
   $poolBadge.textContent = msg;
   $poolBadge.className   = 'pool-badge' + (n === 0 ? ' warn' : '');
   $panelPool.textContent = msg;
@@ -793,7 +1279,7 @@ function refreshPool() {
   if (S.running && !S.pool.length) {
     stopTimer();
     S.running = false;
-    $startBtn.textContent = 'Start';
+    $startBtn.textContent = t('start');
     renderProgress();
   }
 }
@@ -806,12 +1292,12 @@ $startBtn.addEventListener('click', () => {
   if (S.running) {
     stopTimer();
     S.running = false;
-    $startBtn.textContent = 'Resume';
+    $startBtn.textContent = t('resume');
     renderProgress();
   } else {
     if (!S.pool.length) return;
     S.running = true;
-    $startBtn.textContent = 'Pause';
+    $startBtn.textContent = t('pause');
     if (!S.current) advance();
     startTimer();
   }
@@ -873,18 +1359,10 @@ function setNotation(not) {
   S.notation = not;
   $notSharp.classList.toggle('on', not === 'sharp');
   $notFlat.classList.toggle('on',  not === 'flat');
-  if (S.current) {
-    if (S.mode === 'chord') {
-      $current.textContent = chordLabel(S.current);
-    } else {
-      $scaleRoot.textContent = noteName(S.current.root);
-      if (S.showNotes) {
-        $scaleNotes.textContent = S.current.scale.intervals
-          .map(i => noteName((S.current.root + i) % 12)).join(' · ');
-      }
-    }
-  }
+  if (S.current) renderItem();
+  renderKeyBadge();
   renderNoteGrid();
+  renderKeyRootGrid();
 }
 
 $notSharp.addEventListener('click', () => setNotation('sharp'));
@@ -964,123 +1442,174 @@ document.getElementById('noRoots').addEventListener('click', () => {
   renderNoteGrid();
 });
 
-// ── Chord categories ──────────────────────────
-const $catGrid = document.getElementById('catGrid');
+// ── Toggle-group renderer (shared by chord types & scale types) ──
+function renderToggleGroups(container, cats, opts) {
+  const { itemsOf, idOf, labelOf, sel, openSet } = opts;
+  container.innerHTML = '';
 
-CATEGORIES.forEach(cat => {
-  const section  = document.createElement('div');
-  section.className = 'cat-section';
+  cats.forEach(cat => {
+    const items   = itemsOf(cat);
+    const section = document.createElement('div');
+    section.className = 'cat-section';
 
-  // Header
-  const header   = document.createElement('div');
-  header.className = 'cat-header';
+    const header  = document.createElement('div');
+    header.className = 'cat-header';
+    const nameEl  = document.createElement('span');
+    nameEl.className = 'cat-hname';
+    nameEl.textContent = nm(cat);
+    const countEl = document.createElement('span');
+    countEl.className = 'cat-count';
+    const chevron = document.createElement('button');
+    chevron.className = 'cat-chevron';
+    chevron.textContent = '\u25bc';
+    header.append(nameEl, countEl, chevron);
 
-  const nameEl   = document.createElement('span');
-  nameEl.className = 'cat-hname';
-  nameEl.textContent = cat.name;
+    const body = document.createElement('div');
+    body.className = 'cat-body';
 
-  const countEl  = document.createElement('span');
-  countEl.className = 'cat-count';
+    const chips = items.map(it => {
+      const chip = document.createElement('button');
+      chip.className = 'type-chip' + (sel.has(idOf(it)) ? ' on' : '');
+      chip.textContent = labelOf(it);
+      chip.addEventListener('click', () => {
+        const id = idOf(it);
+        if (sel.has(id)) sel.delete(id); else sel.add(id);
+        chip.classList.toggle('on', sel.has(id));
+        syncHeader();
+        refreshPool();
+      });
+      body.appendChild(chip);
+      return chip;
+    });
 
-  const chevron  = document.createElement('button');
-  chevron.className = 'cat-chevron';
-  chevron.textContent = '▼';
-
-  header.appendChild(nameEl);
-  header.appendChild(countEl);
-  header.appendChild(chevron);
-
-  // Body with individual type chips
-  const body = document.createElement('div');
-  body.className = 'cat-body';
-
-  const chips = cat.types.map(type => {
-    const chip = document.createElement('button');
-    chip.className = 'type-chip' + (S.activeTypes.has(type.id) ? ' on' : '');
-    chip.textContent = type.sym === '' ? 'maj' : type.sym;
-    chip.addEventListener('click', () => {
-      if (S.activeTypes.has(type.id)) S.activeTypes.delete(type.id);
-      else                             S.activeTypes.add(type.id);
-      chip.classList.toggle('on', S.activeTypes.has(type.id));
+    header.addEventListener('click', e => {
+      if (e.target === chevron) return;
+      const allOn = items.every(it => sel.has(idOf(it)));
+      items.forEach((it, i) => {
+        const id = idOf(it);
+        if (allOn) { sel.delete(id); chips[i].classList.remove('on'); }
+        else       { sel.add(id);    chips[i].classList.add('on');    }
+      });
       syncHeader();
       refreshPool();
     });
-    body.appendChild(chip);
-    return chip;
-  });
 
-  // Header click: toggle all types in this category
-  header.addEventListener('click', e => {
-    if (e.target === chevron) return;
-    const allOn = cat.types.every(t => S.activeTypes.has(t.id));
-    cat.types.forEach((t, i) => {
-      if (allOn) { S.activeTypes.delete(t.id); chips[i].classList.remove('on'); }
-      else       { S.activeTypes.add(t.id);    chips[i].classList.add('on');    }
+    const isOpen = openSet.has(cat.id);
+    body.classList.toggle('open', isOpen);
+    chevron.classList.toggle('open', isOpen);
+    chevron.addEventListener('click', e => {
+      e.stopPropagation();
+      const now = !openSet.has(cat.id);
+      if (now) openSet.add(cat.id); else openSet.delete(cat.id);
+      body.classList.toggle('open', now);
+      chevron.classList.toggle('open', now);
     });
+
+    function syncHeader() {
+      const n = items.filter(it => sel.has(idOf(it))).length;
+      countEl.textContent = `${n}/${items.length}`;
+      header.className = 'cat-header' + (n === items.length ? ' all-on' : n > 0 ? ' partial' : '');
+    }
+
     syncHeader();
-    refreshPool();
+    section.append(header, body);
+    container.appendChild(section);
   });
+}
 
-  // Chevron: expand / collapse only
-  let open = false;
-  chevron.addEventListener('click', e => {
-    e.stopPropagation();
-    open = !open;
-    body.classList.toggle('open', open);
-    chevron.classList.toggle('open', open);
+// \u2500\u2500 Chord categories \u2500\u2500
+const $catGrid       = document.getElementById('catGrid');
+const openChordCats  = new Set();
+
+function renderChordCategories() {
+  renderToggleGroups($catGrid, CATEGORIES, {
+    itemsOf: c  => c.types,
+    idOf:    ty => ty.id,
+    labelOf: ty => ty.sym === '' ? 'maj' : ty.sym,
+    sel:     S.activeTypes,
+    openSet: openChordCats,
   });
-
-  function syncHeader() {
-    const n = cat.types.filter(t => S.activeTypes.has(t.id)).length;
-    countEl.textContent = `${n}/${cat.types.length}`;
-    header.className = 'cat-header' + (n === cat.types.length ? ' all-on' : n > 0 ? ' partial' : '');
-  }
-
-  syncHeader();
-  section.appendChild(header);
-  section.appendChild(body);
-  $catGrid.appendChild(section);
-});
+}
 
 // ── Mode tabs ──────────────────────────────────
 const $chordTypesSection = document.getElementById('chordTypesSection');
 const $scaleTypesSection = document.getElementById('scaleTypesSection');
 
-function switchMode(mode) {
-  if (S.mode === mode) return;
-  S.mode    = mode;
-  S.current = null;
-  stopTimer();
-  S.running = false;
-  $startBtn.textContent = 'Start';
+const $rootSection        = document.getElementById('rootSection');
+const $keyPracticeSection = document.getElementById('keyPracticeSection');
+const $notationSection    = document.getElementById('notationSection');
+const $submodeRow         = document.getElementById('submodeRow');
 
-  const isChord = mode === 'chord';
-  $chordWrap.style.display           = isChord ? '' : 'none';
+function renderKeyBadge() {
+  const show = S.mode === 'chord' && S.chordMode === 'key';
+  $keyBadge.classList.toggle('visible', show);
+  if (show) $keyBadge.textContent = t('keyBadge')(noteName(S.keyRoot), S.keyQuality);
+}
+
+function applyVisibility() {
+  const isChord = S.mode === 'chord';
+  const isKey   = isChord && S.chordMode === 'key';
+
+  $chordWrap.style.display = isChord ? '' : 'none';
   $scaleWrap.classList.toggle('visible', !isChord);
-  $chordTypesSection.style.display   = isChord ? '' : 'none';
-  $scaleTypesSection.style.display   = isChord ? 'none' : '';
+  $submodeRow.style.display = isChord ? '' : 'none';
+
+  // In Key Practice the key itself decides ♯/♭, so the manual choice is hidden
+  $notationSection.style.display    = isKey ? 'none' : '';
+  $rootSection.style.display        = isKey ? 'none' : '';
+  $chordTypesSection.style.display  = (isChord && !isKey) ? '' : 'none';
+  $keyPracticeSection.style.display = isKey ? '' : 'none';
+  $scaleTypesSection.style.display  = isChord ? 'none' : '';
+
   document.getElementById('tabChords').classList.toggle('active', isChord);
   document.getElementById('tabScales').classList.toggle('active', !isChord);
 
-  if (isChord) {
-    $current.textContent    = 'Ready';
-  } else {
-    $scaleRoot.textContent  = '';
-    $scaleName.textContent  = 'Ready';
-    $scaleNotes.textContent = '';
-  }
+  renderKeyBadge();
+}
+
+function resetDisplay() {
+  S.current = null;
+  stopTimer();
+  S.running = false;
+  $startBtn.textContent = t('start');
+  $current.textContent    = t('ready');
+  $current.classList.remove('pair');
+  $chordFunc.textContent  = '';
+  $scaleRoot.textContent  = '';
+  $scaleName.textContent  = t('ready');
+  $scaleNotes.textContent = '';
   renderProgress();
   refreshPool();
+}
+
+function switchMode(mode) {
+  if (S.mode === mode) return;
+  S.mode = mode;
+  applyVisibility();
+  resetDisplay();
 }
 
 document.getElementById('tabChords').addEventListener('click', () => switchMode('chord'));
 document.getElementById('tabScales').addEventListener('click', () => switchMode('scale'));
 
+// ── Chord sub-mode (Random / Key Practice) ─────
+document.querySelectorAll('#chordModeSeg .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const m = btn.dataset.m;
+    if (S.chordMode === m) return;
+    S.chordMode = m;
+    document.querySelectorAll('#chordModeSeg .seg-btn')
+      .forEach(b => b.classList.toggle('on', b === btn));
+    applyVisibility();
+    resetDisplay();
+  });
+});
+
 // ── Show Notes toggle ──────────────────────────
 const $showNotesToggle = document.getElementById('showNotesToggle');
 $showNotesToggle.addEventListener('click', () => {
   S.showNotes = !S.showNotes;
-  $showNotesToggle.textContent = S.showNotes ? 'On' : 'Off';
+  $showNotesToggle.textContent = S.showNotes ? t('on') : t('off');
   $showNotesToggle.classList.toggle('on', S.showNotes);
   if (S.mode === 'scale' && S.current) {
     $scaleNotes.textContent = S.showNotes
@@ -1089,74 +1618,313 @@ $showNotesToggle.addEventListener('click', () => {
   }
 });
 
-// ── Scale categories ───────────────────────────
-const $scaleCatGrid = document.getElementById('scaleCatGrid');
+// \u2500\u2500 Scale categories \u2500\u2500
+const $scaleCatGrid  = document.getElementById('scaleCatGrid');
+const openScaleCats  = new Set();
 
-SCALE_CATEGORIES.forEach(cat => {
-  const section = document.createElement('div');
-  section.className = 'cat-section';
+function renderScaleCategories() {
+  renderToggleGroups($scaleCatGrid, SCALE_CATEGORIES, {
+    itemsOf: c  => c.scales,
+    idOf:    sc => sc.id,
+    labelOf: sc => nm(sc),
+    sel:     S.activeScales,
+    openSet: openScaleCats,
+  });
+}
 
-  const header  = document.createElement('div');
-  header.className = 'cat-header';
-  const nameEl  = document.createElement('span');
-  nameEl.className = 'cat-hname';
-  nameEl.textContent = cat.name;
-  const countEl = document.createElement('span');
-  countEl.className = 'cat-count';
-  const chevron = document.createElement('button');
-  chevron.className = 'cat-chevron';
-  chevron.textContent = '▼';
-  header.appendChild(nameEl);
-  header.appendChild(countEl);
-  header.appendChild(chevron);
+// ═══════════════════════════════════════════════
+// KEY PRACTICE UI
+// ═══════════════════════════════════════════════
 
-  const body = document.createElement('div');
-  body.className = 'cat-body';
+const $keyRootGrid  = document.getElementById('keyRootGrid');
+const $keyGroupGrid = document.getElementById('keyGroupGrid');
+const openGroups    = new Set(['diatonic']);
 
-  const chips = cat.scales.map(scale => {
+function keyUsesFlats(root, quality) {
+  return quality === 'major' ? FLAT_MAJOR.has(root) : FLAT_MINOR.has(root);
+}
+
+function renderKeyRootGrid() {
+  $keyRootGrid.innerHTML = '';
+  SHARP.forEach((_, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'note-btn' + (S.keyRoot === idx ? ' key-on' : '');
+    // Each key is labelled with its own spelling, not the currently active
+    // notation — E♭ major is always E♭, never D♯.
+    btn.textContent = keyUsesFlats(idx, S.keyQuality) ? FLAT[idx] : SHARP[idx];
+    btn.addEventListener('click', () => {
+      S.keyRoot = idx;
+      setNotation(keyUsesFlats(idx, S.keyQuality) ? 'flat' : 'sharp');
+      renderKeyRootGrid();
+      renderKeyBadge();
+      resetDisplay();
+    });
+    $keyRootGrid.appendChild(btn);
+  });
+}
+
+document.querySelectorAll('#keyQualSeg .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const q = btn.dataset.q;
+    if (S.keyQuality === q) return;
+    S.keyQuality = q;
+    document.querySelectorAll('#keyQualSeg .seg-btn')
+      .forEach(b => b.classList.toggle('on', b === btn));
+    setNotation(keyUsesFlats(S.keyRoot, q) ? 'flat' : 'sharp');
+    renderKeyGroups();
+    renderKeyBadge();
+    resetDisplay();
+  });
+});
+
+function syncGlobalVoi() {
+  document.querySelectorAll('#globalVoiRow .chip').forEach(b => {
+    b.classList.toggle('on', KEY_GROUPS.every(g => S.groupVoicing[g.id].has(b.dataset.v)));
+  });
+}
+
+document.querySelectorAll('#globalVoiRow .chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const v = btn.dataset.v;
+
+    // The global row's own state: voicings that every group currently shares.
+    // When groups disagree this is empty, so the first click sets them all.
+    const target = new Set(
+      ['tri', 'sev'].filter(x => KEY_GROUPS.every(g => S.groupVoicing[g.id].has(x)))
+    );
+    if (target.has(v)) {
+      if (target.size === 1) return;   // keep at least one
+      target.delete(v);
+    } else {
+      target.add(v);
+    }
+
+    // The global control overrides every per-group setting
+    KEY_GROUPS.forEach(g => { S.groupVoicing[g.id] = new Set(target); });
+    syncGlobalVoi();
+    renderKeyGroups();
+    refreshPool();
+  });
+});
+
+// Two independent toggles; the last one enabled can't be turned off
+function makeVoicingToggle(gid, onChange) {
+  const row = document.createElement('div');
+  row.className = 'flavor-row';
+  [['tri', t('triads')], ['sev', t('sevenths')]].forEach(([v, label]) => {
     const chip = document.createElement('button');
-    chip.className = 'type-chip' + (S.activeScales.has(scale.id) ? ' on' : '');
-    chip.textContent = scale.name;
+    chip.className = 'type-chip' + (S.groupVoicing[gid].has(v) ? ' on' : '');
+    chip.textContent = label;
     chip.addEventListener('click', () => {
-      if (S.activeScales.has(scale.id)) S.activeScales.delete(scale.id);
-      else                               S.activeScales.add(scale.id);
-      chip.classList.toggle('on', S.activeScales.has(scale.id));
+      const set = S.groupVoicing[gid];
+      if (set.has(v)) {
+        if (set.size === 1) return;
+        set.delete(v);
+      } else {
+        set.add(v);
+      }
+      chip.classList.toggle('on', set.has(v));
+      onChange();
+    });
+    row.appendChild(chip);
+  });
+  return row;
+}
+
+function makeSeg(options, current, onPick) {
+  const seg = document.createElement('div');
+  seg.className = 'seg';
+  options.forEach(([val, label]) => {
+    const b = document.createElement('button');
+    b.className = 'seg-btn' + (val === current ? ' on' : '');
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      seg.querySelectorAll('.seg-btn').forEach(x => x.classList.toggle('on', x === b));
+      onPick(val);
+    });
+    seg.appendChild(b);
+  });
+  return seg;
+}
+
+function subRow(labelText, node) {
+  const wrap = document.createElement('div');
+  wrap.className = 'sub-row';
+  const lb = document.createElement('span');
+  lb.className = 'sub-label';
+  lb.textContent = labelText;
+  wrap.appendChild(lb);
+  wrap.appendChild(node);
+  return wrap;
+}
+
+function renderKeyGroups() {
+  $keyGroupGrid.innerHTML = '';
+
+  KEY_GROUPS.forEach(g => {
+    const items = itemsFor(g.id);
+    const sel   = S.keySel[S.keyQuality][g.id];
+
+    const section = document.createElement('div');
+    section.className = 'cat-section';
+
+    const header  = document.createElement('div');
+    header.className = 'cat-header';
+    const nameEl  = document.createElement('span');
+    nameEl.className = 'cat-hname';
+    nameEl.textContent = nm(g);
+    const countEl = document.createElement('span');
+    countEl.className = 'cat-count';
+    const chevron = document.createElement('button');
+    chevron.className = 'cat-chevron';
+    chevron.textContent = '▼';
+    header.append(nameEl, countEl, chevron);
+
+    const body = document.createElement('div');
+    body.className = 'cat-body';
+
+    // Minor diatonic: scale-flavor filter
+    if (g.id === 'diatonic' && S.keyQuality === 'minor') {
+      const row = document.createElement('div');
+      row.className = 'flavor-row';
+      MINOR_FLAVORS.forEach(f => {
+        const c = document.createElement('button');
+        c.className = 'flavor-chip' + (S.minorFlavors.has(f.id) ? ' on' : '');
+        c.textContent = nm(f);
+        c.addEventListener('click', () => {
+          if (S.minorFlavors.has(f.id)) {
+            if (S.minorFlavors.size === 1) return;   // keep at least one
+            S.minorFlavors.delete(f.id);
+          } else {
+            // A newly revealed scale joins in the group's current on/off state,
+            // rather than restoring whatever it happened to hold while hidden.
+            const visible = itemsFor(g.id);
+            const allOn   = visible.length > 0 && visible.every(it => sel.has(it.id));
+            S.minorFlavors.add(f.id);
+            KEY_TABLES.minor.diatonic
+              .filter(it => it.flavor === f.id)
+              .forEach(it => allOn ? sel.add(it.id) : sel.delete(it.id));
+          }
+          renderKeyGroups();
+          refreshPool();
+        });
+        row.appendChild(c);
+      });
+      body.appendChild(subRow(t('scaleRow'), row));
+    }
+
+    // Voicing
+    // Voicing feeds the dedup and the chip labels, so redraw the whole list
+    body.appendChild(subRow(t('voicing'), makeVoicingToggle(
+      g.id, () => { syncGlobalVoi(); renderKeyGroups(); refreshPool(); }
+    )));
+
+    // Related II–V: pair vs separate
+    if (g.pair) {
+      body.appendChild(subRow(t('display'), makeSeg(
+        [['pair', t('asPair')], ['separate', t('separate')]],
+        S.pairMode,
+        v => { S.pairMode = v; refreshPool(); }
+      )));
+    }
+
+    const chips = items.map(it => {
+      const chip = document.createElement('button');
+      chip.className = 'type-chip' + (sel.has(it.id) ? ' on' : '');
+      chip.textContent = itemLabel(g.id, it);
+      chip.addEventListener('click', () => {
+        if (sel.has(it.id)) sel.delete(it.id);
+        else                sel.add(it.id);
+        chip.classList.toggle('on', sel.has(it.id));
+        syncHeader();
+        refreshPool();
+      });
+      body.appendChild(chip);
+      return chip;
+    });
+
+    header.addEventListener('click', e => {
+      if (e.target === chevron) return;
+      const allOn = items.every(it => sel.has(it.id));
+      items.forEach((it, i) => {
+        if (allOn) { sel.delete(it.id); chips[i].classList.remove('on'); }
+        else       { sel.add(it.id);    chips[i].classList.add('on');    }
+      });
       syncHeader();
-      if (S.mode === 'scale') refreshPool();
+      refreshPool();
     });
-    body.appendChild(chip);
-    return chip;
-  });
 
-  header.addEventListener('click', e => {
-    if (e.target === chevron) return;
-    const allOn = cat.scales.every(s => S.activeScales.has(s.id));
-    cat.scales.forEach((s, i) => {
-      if (allOn) { S.activeScales.delete(s.id); chips[i].classList.remove('on'); }
-      else       { S.activeScales.add(s.id);    chips[i].classList.add('on');    }
+    const isOpen = openGroups.has(g.id);
+    body.classList.toggle('open', isOpen);
+    chevron.classList.toggle('open', isOpen);
+    chevron.addEventListener('click', e => {
+      e.stopPropagation();
+      const nowOpen = !openGroups.has(g.id);
+      if (nowOpen) openGroups.add(g.id); else openGroups.delete(g.id);
+      body.classList.toggle('open', nowOpen);
+      chevron.classList.toggle('open', nowOpen);
     });
+
+    function syncHeader() {
+      const n = items.filter(it => sel.has(it.id)).length;
+      countEl.textContent = `${n}/${items.length}`;
+      header.className = 'cat-header' + (n === items.length && n > 0 ? ' all-on' : n > 0 ? ' partial' : '');
+    }
+
     syncHeader();
-    if (S.mode === 'scale') refreshPool();
+    section.append(header, body);
+    $keyGroupGrid.appendChild(section);
   });
+}
 
-  let open = false;
-  chevron.addEventListener('click', e => {
-    e.stopPropagation();
-    open = !open;
-    body.classList.toggle('open', open);
-    chevron.classList.toggle('open', open);
-  });
-
-  function syncHeader() {
-    const n = cat.scales.filter(s => S.activeScales.has(s.id)).length;
-    countEl.textContent = `${n}/${cat.scales.length}`;
-    header.className = 'cat-header' + (n === cat.scales.length ? ' all-on' : n > 0 ? ' partial' : '');
+// ── Show Function toggle ───────────────────────
+const $showFuncToggle = document.getElementById('showFuncToggle');
+$showFuncToggle.addEventListener('click', () => {
+  S.showFunction = !S.showFunction;
+  $showFuncToggle.textContent = S.showFunction ? t('on') : t('off');
+  $showFuncToggle.classList.toggle('on', S.showFunction);
+  if (S.current && S.chordMode === 'key') {
+    $chordFunc.textContent = S.showFunction ? (S.current.roman || '') : '';
   }
+});
 
-  syncHeader();
-  section.appendChild(header);
-  section.appendChild(body);
-  $scaleCatGrid.appendChild(section);
+// ═══════════════════════════════════════════════
+// LANGUAGE
+// ═══════════════════════════════════════════════
+
+function applyI18n() {
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.getElementById('customSec').placeholder = t('secPlaceholder');
+  document.querySelectorAll('#langRow .chip')
+    .forEach(b => b.classList.toggle('on', b.dataset.lang === S.lang));
+
+  // Toggles whose label depends on their own state
+  $showNotesToggle.textContent = S.showNotes    ? t('on') : t('off');
+  $showFuncToggle.textContent  = S.showFunction ? t('on') : t('off');
+  $startBtn.textContent = S.running ? t('pause') : (S.current ? t('resume') : t('start'));
+
+  // Content rendered from data tables
+  renderChordCategories();
+  renderScaleCategories();
+  renderKeyGroups();
+  syncGlobalVoi();
+  renderKeyBadge();
+  renderProgress();
+  renderPoolCount();
+  if (S.current) renderItem();
+  else if (S.mode === 'scale') $scaleName.textContent = t('ready');
+  else $current.textContent = t('ready');
+}
+
+document.querySelectorAll('#langRow .chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (S.lang === btn.dataset.lang) return;
+    S.lang = btn.dataset.lang;
+    applyI18n();
+  });
 });
 
 // ═══════════════════════════════════════════════
@@ -1164,8 +1932,10 @@ SCALE_CATEGORIES.forEach(cat => {
 // ═══════════════════════════════════════════════
 
 renderNoteGrid();
+renderKeyRootGrid();
+applyVisibility();
 refreshPool();
-renderProgress();
+applyI18n();   // renders chord/scale/key groups and all localized text
 </script>
 </body>
 </html>
