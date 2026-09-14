@@ -570,8 +570,8 @@
     </div>
 
     <div class="s-row">
-      <span class="s-label" data-i18n="voicingAll">Voicing — All Groups</span>
-      <div class="chip-row" id="globalVoiRow">
+      <span class="s-label" data-i18n="voicing">Voicing</span>
+      <div class="chip-row" id="voicingRow">
         <button class="chip"    data-v="tri" data-i18n="triads">Triads</button>
         <button class="chip on" data-v="sev" data-i18n="sevenths">7ths</button>
       </div>
@@ -718,7 +718,7 @@ const I18N = {
     rootNotes:'Root Notes', all:'All', none:'None',
     chordTypes:'Chord Types', scaleTypes:'Scale Types', showNotes:'Show Notes',
     key:'Key', major:'Major', minor:'Minor',
-    voicingAll:'Voicing — All Groups', voicing:'Voicing',
+    voicing:'Voicing',
     triads:'Triads', sevenths:'7ths',
     chordFunctions:'Chord Functions', showFunction:'Show Function',
     on:'On', off:'Off',
@@ -743,7 +743,7 @@ const I18N = {
     rootNotes:'근음', all:'전체', none:'해제',
     chordTypes:'코드 종류', scaleTypes:'스케일 종류', showNotes:'구성음 표시',
     key:'조성', major:'장조', minor:'단조',
-    voicingAll:'보이싱 — 전체 그룹', voicing:'보이싱',
+    voicing:'보이싱',
     triads:'3화음', sevenths:'7화음',
     chordFunctions:'기능별 코드', showFunction:'기능 표기',
     on:'켬', off:'끔',
@@ -957,7 +957,7 @@ const S = {
     ])),
   },
   // Per group: a non-empty subset of {'tri','sev'}
-  groupVoicing: Object.fromEntries(KEY_GROUPS.map(g => [g.id, new Set(['sev'])])),
+  voicing:     new Set(['sev']),
   pairMode:     'pair',     // 'pair' | 'separate'
   showFunction: true,
 };
@@ -993,13 +993,12 @@ function itemsFor(groupId) {
 
   if (!items.some(it => it.flavor)) return items;
 
-  const voi  = S.groupVoicing[groupId];
   const seen = new Set();
   return items.filter(it => {
     const k = [
       it.deg,
-      voi.has('tri') && it.tri ? it.tri[0] : '',
-      voi.has('sev') && it.sev ? it.sev[0] : '',
+      S.voicing.has('tri') && it.tri ? it.tri[0] : '',
+      S.voicing.has('sev') && it.sev ? it.sev[0] : '',
     ].join('|');
     if (seen.has(k)) return false;
     seen.add(k);
@@ -1010,10 +1009,9 @@ function itemsFor(groupId) {
 // Chips normally carry a fixed roman numeral. Minor diatonic entries are
 // labelled from the active voicing instead, so survivors of the dedup above
 // stay tellable apart (i7 vs i(M7), vii°7 vs viiø7).
-function itemLabel(groupId, it) {
+function itemLabel(it) {
   if (!it.flavor) return it.label;
-  const voi = S.groupVoicing[groupId];
-  if (voi.has('sev') && it.sev) return it.sev[1];
+  if (S.voicing.has('sev') && it.sev) return it.sev[1];
   return it.tri ? it.tri[1] : it.label;
 }
 
@@ -1026,11 +1024,10 @@ function noteNameAcc(n, acc) {
 }
 
 function buildKeyPool() {
-  const out = [];
+  const out  = [];
+  const want = ['tri', 'sev'].filter(v => S.voicing.has(v));
   for (const g of KEY_GROUPS) {
     const sel  = S.keySel[S.keyQuality][g.id];
-    const voi  = S.groupVoicing[g.id];
-    const want = ['tri', 'sev'].filter(v => voi.has(v));
     // Two entries kept apart by their 7th can still share a triad — natural i
     // and harmonic i are both Am. Emit each chord once per group.
     const seen = new Set();
@@ -1592,59 +1589,28 @@ document.querySelectorAll('#keyQualSeg .seg-btn').forEach(btn => {
   });
 });
 
-function syncGlobalVoi() {
-  document.querySelectorAll('#globalVoiRow .chip').forEach(b => {
-    b.classList.toggle('on', KEY_GROUPS.every(g => S.groupVoicing[g.id].has(b.dataset.v)));
+function syncVoicing() {
+  document.querySelectorAll('#voicingRow .chip').forEach(b => {
+    b.classList.toggle('on', S.voicing.has(b.dataset.v));
   });
 }
 
-document.querySelectorAll('#globalVoiRow .chip').forEach(btn => {
+// Two independent toggles; the last one enabled can't be turned off
+document.querySelectorAll('#voicingRow .chip').forEach(btn => {
   btn.addEventListener('click', () => {
     const v = btn.dataset.v;
-
-    // The global row's own state: voicings that every group currently shares.
-    // When groups disagree this is empty, so the first click sets them all.
-    const target = new Set(
-      ['tri', 'sev'].filter(x => KEY_GROUPS.every(g => S.groupVoicing[g.id].has(x)))
-    );
-    if (target.has(v)) {
-      if (target.size === 1) return;   // keep at least one
-      target.delete(v);
+    if (S.voicing.has(v)) {
+      if (S.voicing.size === 1) return;
+      S.voicing.delete(v);
     } else {
-      target.add(v);
+      S.voicing.add(v);
     }
-
-    // The global control overrides every per-group setting
-    KEY_GROUPS.forEach(g => { S.groupVoicing[g.id] = new Set(target); });
-    syncGlobalVoi();
+    syncVoicing();
+    // Voicing feeds the dedup and the chip labels, so redraw the whole list
     renderKeyGroups();
     refreshPool();
   });
 });
-
-// Two independent toggles; the last one enabled can't be turned off
-function makeVoicingToggle(gid, onChange) {
-  const row = document.createElement('div');
-  row.className = 'flavor-row';
-  [['tri', t('triads')], ['sev', t('sevenths')]].forEach(([v, label]) => {
-    const chip = document.createElement('button');
-    chip.className = 'type-chip' + (S.groupVoicing[gid].has(v) ? ' on' : '');
-    chip.textContent = label;
-    chip.addEventListener('click', () => {
-      const set = S.groupVoicing[gid];
-      if (set.has(v)) {
-        if (set.size === 1) return;
-        set.delete(v);
-      } else {
-        set.add(v);
-      }
-      chip.classList.toggle('on', set.has(v));
-      onChange();
-    });
-    row.appendChild(chip);
-  });
-  return row;
-}
 
 function makeSeg(options, current, onPick) {
   const seg = document.createElement('div');
@@ -1728,12 +1694,6 @@ function renderKeyGroups() {
       body.appendChild(subRow(t('scaleRow'), row));
     }
 
-    // Voicing
-    // Voicing feeds the dedup and the chip labels, so redraw the whole list
-    body.appendChild(subRow(t('voicing'), makeVoicingToggle(
-      g.id, () => { syncGlobalVoi(); renderKeyGroups(); refreshPool(); }
-    )));
-
     // Related II–V: pair vs separate
     if (g.pair) {
       body.appendChild(subRow(t('display'), makeSeg(
@@ -1746,7 +1706,7 @@ function renderKeyGroups() {
     const chips = items.map(it => {
       const chip = document.createElement('button');
       chip.className = 'type-chip' + (sel.has(it.id) ? ' on' : '');
-      chip.textContent = itemLabel(g.id, it);
+      chip.textContent = itemLabel(it);
       chip.addEventListener('click', () => {
         if (sel.has(it.id)) sel.delete(it.id);
         else                sel.add(it.id);
@@ -1825,7 +1785,7 @@ function applyI18n() {
   renderChordCategories();
   renderScaleCategories();
   renderKeyGroups();
-  syncGlobalVoi();
+  syncVoicing();
   renderKeyBadge();
   renderProgress();
   renderPoolCount();
