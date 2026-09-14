@@ -11,11 +11,17 @@
 
 ## 화면 구성
 
-상단 탭으로 **Chords(코드)** 와 **Scales(음계)** 를 전환하고, Chords 안에서 다시 **Random Chords** 와 **Key Practice** 를 고른다.
+상단 탭으로 **Chords(코드)** 와 **Scales(음계)** 를 전환한다.
 
 ```
 [ Chords ] [ Scales ]
-  └ ( Random Chords | Key Practice )
+```
+
+코드를 어떤 기준으로 뽑을지는 화면이 아니라 설정 패널의 **Chord Selection(코드 선택 방식)** 에서 고른다.
+
+```
+⚙ 설정 › Chord Selection
+  ( By Chord Type | By Chord Function )
 ```
 
 하단 컨트롤: **Skip**(현재 항목 건너뜀) / **Start · Pause · Resume**  
@@ -23,9 +29,9 @@
 
 ---
 
-## Chords — Random Chords 모드
+## Chords — By Chord Type (코드 유형별)
 
-조성과 무관하게 루트음 × 코드 타입 조합에서 무작위로 뽑는다. 코드명이 화면 중앙에 크게 표시된다.
+기본값이다. 조성과 무관하게 루트음 × 코드 타입 조합에서 무작위로 뽑는다. 코드명이 화면 중앙에 크게 표시된다.
 
 ### 설정 — Chord Types
 
@@ -43,7 +49,7 @@
 
 ---
 
-## Chords — Key Practice 모드
+## Chords — By Chord Function (코드 기능별)
 
 키를 하나 정해두고, **그 키에서 실제로 기능하는 코드만** 뽑는다. 코드명과 함께 로마숫자 기능 표기가 표시된다.
 
@@ -81,7 +87,7 @@
 
 각 그룹을 펼치면 그룹별로 따로 지정할 수 있고, **Voicing — All Groups** 로 전체를 한 번에 맞춘다. 전체 토글은 **그룹별 설정을 덮어쓴다** — 누르고 난 뒤에는 모든 그룹이 전체 토글의 최종 상태와 같아진다. 그룹마다 설정이 다르면 전체 토글은 둘 다 꺼진 상태로 표시된다.
 
-> Key Practice에서는 조성이 표기법을 결정하므로 ♯/♭ 수동 선택은 표시되지 않는다.
+> 코드 기능별 모드에서는 조성이 표기법을 결정하므로 ♯/♭ 수동 선택은 표시되지 않는다.
 
 ### 단조의 Diatonic — Scale
 
@@ -176,9 +182,9 @@ G · A · B♭ · C · D · E · F
 |---|---|
 | **Language** — 한국어 / English. 최초 실행 시 브라우저 언어를 따른다 | 전체 |
 | **Interval** — 전환 시간. 2 · 3 · 4 · 5 · 8 · 10 · 15 · 20 · 30초 프리셋 또는 직접 입력(1~300초) | 전체 |
-| **Notation** — ♯ Sharps / ♭ Flats 선택 | Random Chords · Scales |
-| **Quick Key Select** — 조성을 고르면 해당 음계의 루트음만 필터된다. 장조와 나란한조를 묶어 표시 (예: G / Em) | Random Chords · Scales |
-| **Root Notes** — 12개 루트음을 개별 선택. All / None 으로 일괄 조작 | Random Chords · Scales |
+| **Chord Selection** — 코드를 뽑는 기준. By Chord Type(기본) / By Chord Function | Chords |
+| **Notation** — ♯ Sharps / ♭ Flats 선택 | By Chord Type · Scales |
+| **Root Notes** — 12개 루트음을 개별 선택. All / None 으로 일괄 조작 | By Chord Type · Scales |
 
 설정 패널 하단에 현재 선택된 풀(pool)의 항목 수가 표시된다.
 

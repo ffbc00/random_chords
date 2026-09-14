@@ -135,10 +135,6 @@
     }
     .seg-btn.on { background: var(--accent); color: #fff; }
 
-    .submode {
-      padding: 12px 20px 0;
-      flex-shrink: 0;
-    }
     .scale-root {
       font-size: clamp(72px, 18vw, 140px);
       font-weight: 900;
@@ -348,21 +344,6 @@
       color: var(--accent);
     }
 
-    /* Key grid */
-    .key-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-    .key-btn {
-      padding: 8px 13px;
-      border-radius: 8px;
-      background: var(--surf2);
-      color: var(--text);
-      font-size: 13px;
-      font-family: inherit;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .key-btn.on { border-color: var(--green); color: var(--green); }
-
     /* Category sections */
     .cat-section {
       border-radius: var(--r);
@@ -481,14 +462,6 @@
   <button class="mode-tab"        id="tabScales" data-i18n="tabScales">Scales</button>
 </div>
 
-<!-- ── CHORD SUB-MODE ── -->
-<div class="submode" id="submodeRow">
-  <div class="seg" id="chordModeSeg">
-    <button class="seg-btn on" data-m="random" data-i18n="modeRandom">Random Chords</button>
-    <button class="seg-btn"    data-m="key"    data-i18n="modeKey">Key Practice</button>
-  </div>
-</div>
-
 <!-- ── MAIN ── -->
 <main class="main">
   <div class="chord-wrap" id="chordWrap">
@@ -549,7 +522,16 @@
     <button class="btn btn-secondary" id="applyCustom" data-i18n="set" style="padding:7px 14px;font-size:13px">Set</button>
   </div>
 
-  <!-- Notation (hidden in Key Practice — the key decides the spelling) -->
+  <!-- How chords are chosen (chord mode only) -->
+  <div id="practiceModeSection">
+    <div class="s-row"><span class="s-label" data-i18n="selectBy">Chord Selection</span></div>
+    <div class="seg" id="chordModeSeg">
+      <button class="seg-btn on" data-m="random" data-i18n="byType">By Chord Type</button>
+      <button class="seg-btn"    data-m="key"    data-i18n="byFunction">By Chord Function</button>
+    </div>
+  </div>
+
+  <!-- Notation (hidden when chords follow a key — the key decides the spelling) -->
   <div id="notationSection">
     <div class="s-row">
       <span class="s-label" data-i18n="notation">Notation</span>
@@ -560,11 +542,8 @@
     </div>
   </div>
 
-  <!-- Roots + Quick Key (random chord / scale modes) -->
+  <!-- Roots -->
   <div id="rootSection">
-    <div class="s-row"><span class="s-label" data-i18n="quickKey">Quick Key Select</span></div>
-    <div class="key-grid" id="keyGrid"></div>
-
     <div class="s-row">
       <span class="s-label" data-i18n="rootNotes">Root Notes</span>
       <div class="s-actions">
@@ -575,13 +554,13 @@
     <div class="note-grid" id="noteGrid"></div>
   </div>
 
-  <!-- Chord Types (random chord mode only) -->
+  <!-- Chord Types (chord-type selection only) -->
   <div id="chordTypesSection">
     <div class="s-row"><span class="s-label" data-i18n="chordTypes">Chord Types</span></div>
     <div id="catGrid"></div>
   </div>
 
-  <!-- Key Practice (chord mode only) -->
+  <!-- Key + chord functions (chord-function selection only) -->
   <div id="keyPracticeSection" style="display:none">
     <div class="s-row"><span class="s-label" data-i18n="key">Key</span></div>
     <div class="note-grid" id="keyRootGrid"></div>
@@ -723,40 +702,20 @@ const SCALE_CATEGORIES = [
 ];
 const ALL_SCALES = SCALE_CATEGORIES.flatMap(c => c.scales);
 
-const MAJ_SCALE = [0,2,4,5,7,9,11];
-const MIN_SCALE = [0,2,3,5,7,8,10];
-
-// Relative minor = major root + 9 semitones (same scale notes)
-const KEYS = [
-  { name:'C / Am',    root:0,  not:'sharp' },
-  { name:'G / Em',    root:7,  not:'sharp' },
-  { name:'D / Bm',    root:2,  not:'sharp' },
-  { name:'A / F♯m',  root:9,  not:'sharp' },
-  { name:'E / C♯m',  root:4,  not:'sharp' },
-  { name:'B / G♯m',  root:11, not:'sharp' },
-  { name:'F♯ / D♯m', root:6,  not:'sharp' },
-  { name:'F / Dm',    root:5,  not:'flat'  },
-  { name:'B♭ / Gm',  root:10, not:'flat'  },
-  { name:'E♭ / Cm',  root:3,  not:'flat'  },
-  { name:'A♭ / Fm',  root:8,  not:'flat'  },
-  { name:'D♭ / B♭m', root:1,  not:'flat'  },
-  { name:'G♭ / E♭m', root:6,  not:'flat'  },
-];
-
 const PRESETS = [2, 3, 4, 5, 8, 10, 15, 20, 30];
 
 // ─── I18N ─────────────────────────────────────
 const I18N = {
   en: {
     appTitle:'Chord Trainer', tabChords:'Chords', tabScales:'Scales',
-    modeRandom:'Random Chords', modeKey:'Key Practice',
+    selectBy:'Chord Selection', byType:'By Chord Type', byFunction:'By Chord Function',
     skip:'Skip', start:'Start', pause:'Pause', resume:'Resume',
     ready:'Ready', paused:'Paused',
     nextChord:'Next chord in', nextScale:'Next scale in',
     settings:'Settings', language:'Language',
     interval:'Interval', custom:'Custom:', set:'Set', secPlaceholder:'sec',
     notation:'Notation', sharps:'♯ Sharps', flats:'♭ Flats',
-    quickKey:'Quick Key Select', rootNotes:'Root Notes', all:'All', none:'None',
+    rootNotes:'Root Notes', all:'All', none:'None',
     chordTypes:'Chord Types', scaleTypes:'Scale Types', showNotes:'Show Notes',
     key:'Key', major:'Major', minor:'Minor',
     voicingAll:'Voicing — All Groups', voicing:'Voicing',
@@ -774,14 +733,14 @@ const I18N = {
   },
   ko: {
     appTitle:'코드 트레이너', tabChords:'코드', tabScales:'스케일',
-    modeRandom:'랜덤 코드', modeKey:'키 연습',
+    selectBy:'코드 선택 방식', byType:'코드 유형별', byFunction:'코드 기능별',
     skip:'건너뛰기', start:'시작', pause:'일시정지', resume:'계속',
     ready:'준비', paused:'멈춤',
     nextChord:'다음 코드까지', nextScale:'다음 스케일까지',
     settings:'설정', language:'언어',
     interval:'전환 간격', custom:'직접 입력:', set:'적용', secPlaceholder:'초',
     notation:'표기법', sharps:'♯ 샤프', flats:'♭ 플랫',
-    quickKey:'조성 빠른 선택', rootNotes:'근음', all:'전체', none:'해제',
+    rootNotes:'근음', all:'전체', none:'해제',
     chordTypes:'코드 종류', scaleTypes:'스케일 종류', showNotes:'구성음 표시',
     key:'조성', major:'장조', minor:'단조',
     voicingAll:'보이싱 — 전체 그룹', voicing:'보이싱',
@@ -977,7 +936,6 @@ const S = {
     SCALE_CATEGORIES.find(c => c.id === 'basic').scales.map(s => s.id)
   ),
   showNotes:   false,
-  selectedKey: null,
   pool:        [],
   current:     null,
   tick:        null,
@@ -1368,39 +1326,6 @@ function setNotation(not) {
 $notSharp.addEventListener('click', () => setNotation('sharp'));
 $notFlat.addEventListener('click',  () => setNotation('flat'));
 
-// ── Keys ──────────────────────────────────────
-const $keyGrid = document.getElementById('keyGrid');
-
-// "All" button
-const allKeyBtn = document.createElement('button');
-allKeyBtn.className = 'key-btn on';
-allKeyBtn.textContent = 'All';
-allKeyBtn.addEventListener('click', () => {
-  S.selectedKey = null;
-  S.activeRoots = new Set([...Array(12).keys()]);
-  document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
-  allKeyBtn.classList.add('on');
-  refreshPool();
-  renderNoteGrid();
-});
-$keyGrid.appendChild(allKeyBtn);
-
-KEYS.forEach(k => {
-  const btn = document.createElement('button');
-  btn.className = 'key-btn';
-  btn.textContent = k.name;
-  btn.addEventListener('click', () => {
-    S.selectedKey = k;
-    S.activeRoots = new Set(MAJ_SCALE.map(d => (k.root + d) % 12));
-    document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
-    btn.classList.add('on');
-    setNotation(k.not);
-    refreshPool();
-    renderNoteGrid();
-  });
-  $keyGrid.appendChild(btn);
-});
-
 // ── Root notes ────────────────────────────────
 const $noteGrid = document.getElementById('noteGrid');
 
@@ -1412,10 +1337,6 @@ function renderNoteGrid() {
     btn.className = 'note-btn' + (S.activeRoots.has(idx) ? ' on' : '');
     btn.textContent = names[idx];
     btn.addEventListener('click', () => {
-      // Deselect key shortcut since user is customizing roots
-      S.selectedKey = null;
-      document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
-      allKeyBtn.classList.add('on');
       if (S.activeRoots.has(idx)) { S.activeRoots.delete(idx); btn.classList.remove('on'); }
       else                         { S.activeRoots.add(idx);    btn.classList.add('on');    }
       refreshPool();
@@ -1426,18 +1347,12 @@ function renderNoteGrid() {
 
 document.getElementById('allRoots').addEventListener('click', () => {
   S.activeRoots = new Set([...Array(12).keys()]);
-  S.selectedKey = null;
-  document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
-  allKeyBtn.classList.add('on');
   refreshPool();
   renderNoteGrid();
 });
 
 document.getElementById('noRoots').addEventListener('click', () => {
   S.activeRoots = new Set();
-  S.selectedKey = null;
-  document.querySelectorAll('#keyGrid .key-btn').forEach(b => b.classList.remove('on'));
-  allKeyBtn.classList.add('on');
   refreshPool();
   renderNoteGrid();
 });
@@ -1538,7 +1453,7 @@ const $scaleTypesSection = document.getElementById('scaleTypesSection');
 const $rootSection        = document.getElementById('rootSection');
 const $keyPracticeSection = document.getElementById('keyPracticeSection');
 const $notationSection    = document.getElementById('notationSection');
-const $submodeRow         = document.getElementById('submodeRow');
+const $practiceModeSec    = document.getElementById('practiceModeSection');
 
 function renderKeyBadge() {
   const show = S.mode === 'chord' && S.chordMode === 'key';
@@ -1552,9 +1467,9 @@ function applyVisibility() {
 
   $chordWrap.style.display = isChord ? '' : 'none';
   $scaleWrap.classList.toggle('visible', !isChord);
-  $submodeRow.style.display = isChord ? '' : 'none';
+  $practiceModeSec.style.display = isChord ? '' : 'none';
 
-  // In Key Practice the key itself decides ♯/♭, so the manual choice is hidden
+  // When chords follow a key, the key itself decides ♯/♭, so the manual choice is hidden
   $notationSection.style.display    = isKey ? 'none' : '';
   $rootSection.style.display        = isKey ? 'none' : '';
   $chordTypesSection.style.display  = (isChord && !isKey) ? '' : 'none';
@@ -1592,7 +1507,7 @@ function switchMode(mode) {
 document.getElementById('tabChords').addEventListener('click', () => switchMode('chord'));
 document.getElementById('tabScales').addEventListener('click', () => switchMode('scale'));
 
-// ── Chord sub-mode (Random / Key Practice) ─────
+// ── Chord selection basis (by type / by function) ──
 document.querySelectorAll('#chordModeSeg .seg-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const m = btn.dataset.m;
