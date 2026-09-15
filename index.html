@@ -76,6 +76,7 @@
 
     /* Display wrappers (shared fade) */
     .chord-wrap, .scale-wrap {
+      width: 100%;
       text-align: center;
       transition: opacity 0.12s ease;
     }
@@ -84,10 +85,12 @@
     .scale-wrap.visible { display: block; }
 
     .chord-current {
-      font-size: clamp(72px, 18vw, 160px);
-      font-weight: 900;
-      letter-spacing: -3px;
+      font-size: clamp(72px, 18vw, 160px);   /* the maximum; fitChord() shrinks from here */
+      font-weight: 600;
+      letter-spacing: -1.5px;
       line-height: 1;
+      white-space: nowrap;
+      overflow: hidden;
     }
     .chord-current.pair {
       font-size: clamp(38px, 10vw, 84px);
@@ -1245,6 +1248,19 @@ const $panelPool  = document.getElementById('panelPool');
 const $startBtn   = document.getElementById('startBtn');
 const $skipBtn    = document.getElementById('skipBtn');
 
+// A chord name is one line. With several tensions it outruns a phone screen,
+// so start at the CSS maximum and step down until it fits the wrapper.
+function fitChord() {
+  $current.style.fontSize = '';
+  const avail = $chordWrap.clientWidth;
+  if (!avail) return;
+  let size = parseFloat(getComputedStyle($current).fontSize);
+  while (size > 24 && $current.scrollWidth > avail) {
+    size -= size > 48 ? 2 : 1;
+    $current.style.fontSize = size + 'px';
+  }
+}
+
 function renderItem() {
   if (S.mode === 'chord') {
     $chordWrap.classList.add('fade');
@@ -1267,6 +1283,7 @@ function renderItem() {
 
       $current.textContent = text;
       $current.classList.toggle('pair', isPair);
+      fitChord();
       $chordFunc.textContent = (S.chordMode === 'key' && S.showFunction) ? func : '';
       $chordWrap.classList.remove('fade');
     }, 120);
@@ -1608,6 +1625,7 @@ function resetDisplay() {
   $startBtn.textContent = t('start');
   $current.textContent    = t('ready');
   $current.classList.remove('pair');
+  fitChord();
   $chordFunc.textContent  = '';
   $scaleRoot.textContent  = '';
   $scaleName.textContent  = t('ready');
@@ -1913,7 +1931,7 @@ function applyI18n() {
   renderPoolCount();
   if (S.current) renderItem();
   else if (S.mode === 'scale') $scaleName.textContent = t('ready');
-  else $current.textContent = t('ready');
+  else { $current.textContent = t('ready'); fitChord(); }
 }
 
 document.querySelectorAll('#langRow .chip').forEach(btn => {
@@ -1927,6 +1945,8 @@ document.querySelectorAll('#langRow .chip').forEach(btn => {
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
+
+window.addEventListener('resize', fitChord);
 
 renderNoteGrid();
 renderKeyRootGrid();
