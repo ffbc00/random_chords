@@ -106,6 +106,17 @@
       margin-bottom: 12px;
     }
     .key-badge.visible { display: block; }
+    .chord-tones {
+      font-size: clamp(14px, 3.6vw, 20px);
+      color: var(--dim);
+      margin-top: 8px;
+      letter-spacing: 0.3px;
+    }
+    .chord-tones.deg {
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.72;
+    }
     .chord-func {
       font-size: clamp(15px, 4vw, 24px);
       font-weight: 700;
@@ -493,6 +504,8 @@
     <div class="key-badge"    id="keyBadge"></div>
     <div class="chord-current" id="chordCurrent">Ready</div>
     <div class="chord-func"   id="chordFunc"></div>
+    <div class="chord-tones"  id="chordNotes"></div>
+    <div class="chord-tones deg" id="chordDegrees"></div>
   </div>
   <div class="scale-wrap" id="scaleWrap">
     <div class="scale-root" id="scaleRoot"></div>
@@ -611,6 +624,22 @@
     </div>
   </div>
 
+  <!-- What to spell out under the chord (chord mode only) -->
+  <div id="chordDisplaySection">
+    <div class="s-row">
+      <span class="s-label" data-i18n="showNotes">Show Notes</span>
+      <button class="chip" id="showChordNotes">Off</button>
+    </div>
+    <div class="s-row" id="doubleAccRow">
+      <span class="s-label" data-i18n="doubleAcc">Double Accidentals</span>
+      <button class="chip" id="doubleAccBtn">Off</button>
+    </div>
+    <div class="s-row">
+      <span class="s-label" data-i18n="showDegrees">Show Degrees</span>
+      <button class="chip" id="showDegreesBtn">Off</button>
+    </div>
+  </div>
+
   <!-- Scale Types (scale mode only) -->
   <div id="scaleTypesSection" style="display:none">
     <div class="s-row"><span class="s-label" data-i18n="scaleTypes">Scale Types</span></div>
@@ -654,28 +683,29 @@ const CATEGORIES = [
   {
     id: 'triad', name: 'Triads', ko: '3화음',
     ex: 'C · Cm · Caug · Cdim · Csus4',
+    // iv = semitones above the root, dg = the degree each one spells
     types: [
-      { id:'maj',  sym:''     },
-      { id:'min',  sym:'m'    },
-      { id:'aug',  sym:'aug'  },
-      { id:'dim',  sym:'dim'  },
-      { id:'sus4', sym:'sus4' },
+      { id:'maj',  sym:'',     iv:[0,4,7], dg:['1','3','5']    },
+      { id:'min',  sym:'m',    iv:[0,3,7], dg:['1','♭3','5']   },
+      { id:'aug',  sym:'aug',  iv:[0,4,8], dg:['1','3','♯5']   },
+      { id:'dim',  sym:'dim',  iv:[0,3,6], dg:['1','♭3','♭5']  },
+      { id:'sus4', sym:'sus4', iv:[0,5,7], dg:['1','4','5']    },
     ]
   },
   {
     id: 'seventh', name: '7th Chords', ko: '7화음',
     ex: 'CM7 · Cm7 · C7 · Cm7♭5 · C7♭5',
     types: [
-      { id:'maj7',    sym:'M7'      },
-      { id:'min7',    sym:'m7'      },
-      { id:'dom7',    sym:'7'       },
-      { id:'hdim7',   sym:'m7♭5'   },
-      { id:'dim7',    sym:'dim7'    },
-      { id:'mMaj7',   sym:'mM7'     },
-      { id:'7b5',     sym:'7♭5'    },
-      { id:'aug7',    sym:'7♯5'    },
-      { id:'augMaj7', sym:'M7♯5'  },
-      { id:'7sus4',   sym:'7sus4'   },
+      { id:'maj7',    sym:'M7',    iv:[0,4,7,11], dg:['1','3','5','7']      },
+      { id:'min7',    sym:'m7',    iv:[0,3,7,10], dg:['1','♭3','5','♭7']    },
+      { id:'dom7',    sym:'7',     iv:[0,4,7,10], dg:['1','3','5','♭7']     },
+      { id:'hdim7',   sym:'m7♭5', iv:[0,3,6,10], dg:['1','♭3','♭5','♭7']   },
+      { id:'dim7',    sym:'dim7',  iv:[0,3,6,9],  dg:['1','♭3','♭5','♭♭7']  },
+      { id:'mMaj7',   sym:'mM7',   iv:[0,3,7,11], dg:['1','♭3','5','7']     },
+      { id:'7b5',     sym:'7♭5',  iv:[0,4,6,10], dg:['1','3','♭5','♭7']    },
+      { id:'aug7',    sym:'7♯5',  iv:[0,4,8,10], dg:['1','3','♯5','♭7']    },
+      { id:'augMaj7', sym:'M7♯5', iv:[0,4,8,11], dg:['1','3','♯5','7']     },
+      { id:'7sus4',   sym:'7sus4', iv:[0,5,7,10], dg:['1','4','5','♭7']     },
     ]
   },
   {
@@ -687,14 +717,16 @@ const CATEGORIES = [
   {
     id: 'added', name: 'Added Tones', ko: '부가음',
     ex: 'Cadd9 · C6/9 · Cm6/9',
+    // add2 keeps the 2nd below the 3rd; add9 lifts it an octave. Same pitch
+    // classes, different shape under the hand — which is why both are here.
     types: [
-      { id:'add9',  sym:'add9'  },
-      { id:'add2',  sym:'add2'  },
-      { id:'6',     sym:'6'     },
-      { id:'69',    sym:'6/9'   },
-      { id:'madd9', sym:'madd9' },
-      { id:'m6',    sym:'m6'    },
-      { id:'m69',   sym:'m6/9'  },
+      { id:'add9',  sym:'add9',  iv:[0,4,7,14],   dg:['1','3','5','9']        },
+      { id:'add2',  sym:'add2',  iv:[0,2,4,7],    dg:['1','2','3','5']        },
+      { id:'6',     sym:'6',     iv:[0,4,7,9],    dg:['1','3','5','6']        },
+      { id:'69',    sym:'6/9',   iv:[0,4,7,9,14], dg:['1','3','5','6','9']    },
+      { id:'madd9', sym:'madd9', iv:[0,3,7,14],   dg:['1','♭3','5','9']       },
+      { id:'m6',    sym:'m6',    iv:[0,3,7,9],    dg:['1','♭3','5','6']       },
+      { id:'m69',   sym:'m6/9',  iv:[0,3,7,9,14], dg:['1','♭3','5','6','9']   },
     ]
   },
 ];
@@ -801,6 +833,7 @@ const I18N = {
     chordTypes:'Chord Types', scaleTypes:'Scale Types', showNotes:'Show Notes',
     key:'Key', major:'Major', minor:'Minor',
     voicing:'Voicing',
+    showDegrees:'Show Degrees', doubleAcc:'Double Accidentals',
     triads:'Triads', sevenths:'7ths',
     chordFunctions:'Chord Functions', showFunction:'Show Function',
     on:'On', off:'Off',
@@ -826,6 +859,7 @@ const I18N = {
     chordTypes:'코드 종류', scaleTypes:'스케일 종류', showNotes:'구성음 표시',
     key:'조성', major:'장조', minor:'단조',
     voicing:'보이싱',
+    showDegrees:'도수 표시', doubleAcc:'겹임시표 허용',
     triads:'3화음', sevenths:'7화음',
     chordFunctions:'기능별 코드', showFunction:'기능 표기',
     on:'켬', off:'끔',
@@ -845,7 +879,8 @@ function nm(obj)   { return S.lang === 'ko' && obj.ko ? obj.ko : obj.name; }
 
 // ─── KEY PRACTICE ─────────────────────────────
 // Chord symbol lookup, reusing the chord-type table.
-const TYPE_SYM = Object.fromEntries(ALL_TYPES.map(t => [t.id, t.sym]));
+const TYPE_SYM   = Object.fromEntries(ALL_TYPES.map(t => [t.id, t.sym]));
+const TYPE_BY_ID = Object.fromEntries(ALL_TYPES.map(t => [t.id, t]));
 
 // Keys notated with flats, by tonic pitch class
 const FLAT_MAJOR = new Set([5, 10, 3, 8, 1, 6]);
@@ -1015,7 +1050,10 @@ const S = {
   activeScales: new Set(
     SCALE_CATEGORIES.find(c => c.id === 'basic').scales.map(s => s.id)
   ),
-  showNotes:   false,
+  showNotes:   false,   // scale mode
+  showChordNotes: false,
+  showDegrees:    false,
+  doubleAcc:      false,   // spell D♭dim7 as D♭ F♭ A♭♭ C♭♭
   pool:        [],
   current:     null,
   tick:        null,
@@ -1100,6 +1138,45 @@ function itemLabel(it) {
 
 // Borrowed and substitute chords keep their own accidental regardless of the
 // key's notation — ♭III in C major is E♭M7, never D♯M7.
+const LETTERS   = ['C','D','E','F','G','A','B'];
+const LETTER_PC = [0, 2, 4, 5, 7, 9, 11];
+const ACCIDENTAL = { '-2':'♭♭', '-1':'♭', '0':'', '1':'♯', '2':'♯♯' };
+
+// A chord tone takes the letter its degree calls for: the ♭3 of C is E♭, never
+// D♯. The root's own letter anchors the count and the accidental is whatever
+// distance is left over. Returns null when no spelling is available within the
+// allowed accidentals, which tells the caller to fall back.
+function spellTone(rootName, rootPc, degree, interval, allowDouble) {
+  const li  = LETTERS.indexOf(rootName[0]);
+  const num = parseInt(degree.replace(/[^0-9]/g, ''), 10);
+  if (li < 0 || !num) return null;
+  const lt  = (li + (num - 1) % 7) % 7;
+  const pc  = (rootPc + interval) % 12;
+  const acc = ((pc - LETTER_PC[lt] + 126) % 12) - 6;
+  if (!allowDouble && Math.abs(acc) > 1) return null;
+  const mark = ACCIDENTAL[String(acc)];
+  return mark === undefined ? null : LETTERS[lt] + mark;
+}
+
+// The chord's tones in order: the type's own intervals, then any tensions an
+// octave above. Strict spelling piles up double flats on chords like D♭dim7
+// (D♭ F♭ A♭♭ C♭♭). Unless the reader asks for those, a chord needing one
+// drops to plain note names as a whole — mixing the two spellings inside one
+// chord reads worse than either.
+function chordTones(typeId, rootPc, rootName, tensions) {
+  const ty = TYPE_BY_ID[typeId];
+  if (!ty || !ty.iv) return [];
+  const parts = ty.iv.map((iv, i) => ({ iv, dg: ty.dg[i] }));
+  (tensions || []).forEach(v => parts.push({ iv: v.semi + 12, dg: v.sym }));
+
+  const spelled = parts.map(t => spellTone(rootName, rootPc, t.dg, t.iv, S.doubleAcc));
+  const strict  = spelled.every(n => n !== null);
+  return parts.map((t, i) => ({
+    note: strict ? spelled[i] : noteName(rootPc + t.iv),
+    deg:  t.dg,
+  }));
+}
+
 function noteNameAcc(n, acc) {
   if (acc === 'flat')  return FLAT[n % 12];
   if (acc === 'sharp') return SHARP[n % 12];
@@ -1245,6 +1322,8 @@ const $timerLbl   = document.getElementById('timerLabel');
 const $timerNum   = document.getElementById('timerNum');
 const $poolBadge  = document.getElementById('poolBadge');
 const $panelPool  = document.getElementById('panelPool');
+const $chordNotes   = document.getElementById('chordNotes');
+const $chordDegrees = document.getElementById('chordDegrees');
 const $startBtn   = document.getElementById('startBtn');
 const $skipBtn    = document.getElementById('skipBtn');
 
@@ -1259,6 +1338,21 @@ function fitChord() {
     size -= size > 48 ? 2 : 1;
     $current.style.fontSize = size + 'px';
   }
+}
+
+// A chord pair is two chords at once, so spelling its tones would be
+// ambiguous; everything else gets its notes and degrees on demand.
+function renderTones(c) {
+  let tones = [];
+  if (c && c.kind === 'chord') {
+    tones = chordTones(c.type.id, c.root, noteName(c.root), c.tensions);
+  } else if (c && c.kind === 'keychord') {
+    tones = chordTones(c.typeId, c.root, noteNameAcc(c.root, c.acc), null);
+  }
+  $chordNotes.textContent =
+    S.showChordNotes && tones.length ? tones.map(t => t.note).join(' \u00b7 ') : '';
+  $chordDegrees.textContent =
+    S.showDegrees && tones.length ? tones.map(t => t.deg).join(' \u00b7 ') : '';
 }
 
 function renderItem() {
@@ -1285,6 +1379,7 @@ function renderItem() {
       $current.classList.toggle('pair', isPair);
       fitChord();
       $chordFunc.textContent = (S.chordMode === 'key' && S.showFunction) ? func : '';
+      renderTones(c);
       $chordWrap.classList.remove('fade');
     }, 120);
   } else {
@@ -1590,6 +1685,7 @@ const $rootSection        = document.getElementById('rootSection');
 const $keyPracticeSection = document.getElementById('keyPracticeSection');
 const $notationSection    = document.getElementById('notationSection');
 const $practiceModeSec    = document.getElementById('practiceModeSection');
+const $chordDisplaySec    = document.getElementById('chordDisplaySection');
 
 function renderKeyBadge() {
   const show = S.mode === 'chord' && S.chordMode === 'key';
@@ -1604,6 +1700,7 @@ function applyVisibility() {
   $chordWrap.style.display = isChord ? '' : 'none';
   $scaleWrap.classList.toggle('visible', !isChord);
   $practiceModeSec.style.display = isChord ? '' : 'none';
+  $chordDisplaySec.style.display = isChord ? '' : 'none';
 
   // When chords follow a key, the key itself decides ♯/♭, so the manual choice is hidden
   $notationSection.style.display    = isKey ? 'none' : '';
@@ -1627,6 +1724,7 @@ function resetDisplay() {
   $current.classList.remove('pair');
   fitChord();
   $chordFunc.textContent  = '';
+  renderTones(null);
   $scaleRoot.textContent  = '';
   $scaleName.textContent  = t('ready');
   $scaleNotes.textContent = '';
@@ -1656,6 +1754,31 @@ document.querySelectorAll('#chordModeSeg .seg-btn').forEach(btn => {
     resetDisplay();
   });
 });
+
+// ── Chord tone / degree toggles ────────────────
+const $showChordNotes = document.getElementById('showChordNotes');
+const $showDegreesBtn = document.getElementById('showDegreesBtn');
+const $doubleAccBtn   = document.getElementById('doubleAccBtn');
+const $doubleAccRow   = document.getElementById('doubleAccRow');
+
+// The spelling choice only has an effect while the notes are on screen
+function syncToneRows() {
+  $doubleAccRow.style.display = S.showChordNotes ? '' : 'none';
+}
+
+function bindToneToggle(btn, key) {
+  btn.addEventListener('click', () => {
+    S[key] = !S[key];
+    btn.textContent = S[key] ? t('on') : t('off');
+    btn.classList.toggle('on', S[key]);
+    syncToneRows();
+    renderTones(S.current);
+  });
+}
+bindToneToggle($showChordNotes, 'showChordNotes');
+bindToneToggle($showDegreesBtn, 'showDegrees');
+bindToneToggle($doubleAccBtn,   'doubleAcc');
+syncToneRows();
 
 // ── Show Notes toggle ──────────────────────────
 const $showNotesToggle = document.getElementById('showNotesToggle');
@@ -1917,8 +2040,11 @@ function applyI18n() {
     .forEach(b => b.classList.toggle('on', b.dataset.lang === S.lang));
 
   // Toggles whose label depends on their own state
-  $showNotesToggle.textContent = S.showNotes    ? t('on') : t('off');
-  $showFuncToggle.textContent  = S.showFunction ? t('on') : t('off');
+  $showNotesToggle.textContent = S.showNotes      ? t('on') : t('off');
+  $showChordNotes.textContent  = S.showChordNotes ? t('on') : t('off');
+  $showDegreesBtn.textContent  = S.showDegrees    ? t('on') : t('off');
+  $doubleAccBtn.textContent    = S.doubleAcc      ? t('on') : t('off');
+  $showFuncToggle.textContent  = S.showFunction   ? t('on') : t('off');
   $startBtn.textContent = S.running ? t('pause') : (S.current ? t('resume') : t('start'));
 
   // Content rendered from data tables
