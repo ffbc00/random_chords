@@ -402,6 +402,28 @@
       background: rgba(99,102,241,0.10);
     }
 
+    /* Tension chips, one row per degree */
+    .ten-row {
+      flex: 0 0 100%;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .ten-label {
+      min-width: 34px;
+      padding: 6px 4px;
+      border: none;
+      background: none;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--dim);
+      text-align: left;
+      cursor: pointer;
+    }
+    .ten-label.on { color: var(--text); }
+
     /* Sub-rows inside a category body */
     .sub-row {
       width: 100%;
@@ -609,16 +631,31 @@
 const SHARP = ['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 const FLAT  = ['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'];
 
+// Tension variants, grouped by the degree each occupies. `semi` is the
+// interval above the root; it also fixes the order inside the parentheses.
+const TENSION_DEGREES = [
+  { id:'9',  label:'9',  variants:[
+      { id:'b9',  sym:'♭9',  semi:1 },
+      { id:'n9',  sym:'9',    semi:2 },
+      { id:'s9',  sym:'♯9',  semi:3 } ] },
+  { id:'11', label:'11', variants:[
+      { id:'n11', sym:'11',   semi:5 },
+      { id:'s11', sym:'♯11', semi:6 } ] },
+  { id:'13', label:'13', variants:[
+      { id:'b13', sym:'♭13', semi:8 },
+      { id:'n13', sym:'13',   semi:9 } ] },
+];
+const ALL_TENSIONS = TENSION_DEGREES.flatMap(d => d.variants);
+
 const CATEGORIES = [
   {
     id: 'triad', name: 'Triads', ko: '3화음',
-    ex: 'C · Cm · Caug · Cdim · Csus2',
+    ex: 'C · Cm · Caug · Cdim · Csus4',
     types: [
       { id:'maj',  sym:''     },
       { id:'min',  sym:'m'    },
       { id:'aug',  sym:'aug'  },
       { id:'dim',  sym:'dim'  },
-      { id:'sus2', sym:'sus2' },
       { id:'sus4', sym:'sus4' },
     ]
   },
@@ -638,43 +675,83 @@ const CATEGORIES = [
     ]
   },
   {
-    id: 'extended', name: 'Extended', ko: '확장 화음',
-    ex: 'CM9 · Cm11 · C13 · Cadd9 · C6/9',
-    types: [
-      { id:'maj9',  sym:'M9'    },
-      { id:'min9',  sym:'m9'    },
-      { id:'dom9',  sym:'9'     },
-      { id:'maj11', sym:'M11'   },
-      { id:'min11', sym:'m11'   },
-      { id:'dom11', sym:'11'    },
-      { id:'maj13', sym:'M13'   },
-      { id:'min13', sym:'m13'   },
-      { id:'dom13', sym:'13'    },
-      { id:'add9',  sym:'add9'  },
-      { id:'madd9', sym:'madd9' },
-      { id:'6',     sym:'6'     },
-      { id:'m6',    sym:'m6'    },
-      { id:'69',    sym:'6/9'   },
-    ]
+    id: 'tension', name: 'Tensions', ko: '텐션',
+    ex: 'C7(♯9) · CM7(9, ♯11) · Cm7(9, 11, 13)',
+    // Chips are the tension variants; they ride on whichever 7th chords are on
+    tensions: ALL_TENSIONS,
   },
   {
-    id: 'altered', name: 'Altered', ko: '얼터드',
-    ex: 'C7♭9 · C7#9 · C7#11 · Calt',
+    id: 'added', name: 'Added Tones', ko: '부가음',
+    ex: 'Cadd9 · C6/9 · Cm6/9',
     types: [
-      { id:'7b9',   sym:'7♭9'   },
-      { id:'7s9',   sym:'7#9'   },
-      { id:'7b5',   sym:'7♭5'   },
-      { id:'7s5',   sym:'7#5'   },
-      { id:'7s11',  sym:'7#11'  },
-      { id:'7b13',  sym:'7♭13'  },
-      { id:'7b9b5', sym:'7♭9♭5' },
-      { id:'7s9s5', sym:'7#9#5' },
-      { id:'alt',   sym:'alt'   },
+      { id:'add9',  sym:'add9'  },
+      { id:'add2',  sym:'add2'  },
+      { id:'6',     sym:'6'     },
+      { id:'69',    sym:'6/9'   },
+      { id:'madd9', sym:'madd9' },
+      { id:'m6',    sym:'m6'    },
+      { id:'m69',   sym:'m6/9'  },
     ]
   },
 ];
 
-const ALL_TYPES = CATEGORIES.flatMap(c => c.types);
+const ALL_TYPES = CATEGORIES.flatMap(c => c.types || []);
+
+// Which tension variants each 7th chord can carry. A variant left out is an
+// avoid note: 11 swallows the 3rd of a major or dominant chord, so those take
+// ♯11 instead; a dominant's 4th only appears as the suspension of 7sus4.
+const TENSION_AVAIL = {
+  maj7:    ['n9', 's11', 'n13'],
+  min7:    ['n9', 'n11', 'n13'],
+  dom7:    ['b9', 'n9', 's9', 's11', 'b13', 'n13'],
+  hdim7:   ['n9', 'n11', 'b13'],                     // locrian ♮2
+  dim7:    ['n9', 'n11', 'b13'],                     // a whole step above each chord tone
+  mMaj7:   ['n9', 'n11', 'n13'],                     // melodic minor
+  aug7:    ['n9', 's11'],                            // whole tone: the ♯5 is a chord tone
+  augMaj7: ['n9', 's11'],                            // lydian augmented; 13 clashes with ♯5
+  '7sus4': ['b9', 'n9', 'b13', 'n13'],               // the 4th is a chord tone here
+};
+
+// Two tensions share a degree only when they sit a whole step apart — ♭9 with
+// ♯9. A half step (11/♯11, ♭13/13) means one swallows the other.
+function degreePicks(variants) {
+  const out = [];
+  for (let m = 1; m < (1 << variants.length); m++) {
+    const pick = variants.filter((_, i) => m & (1 << i));
+    const ok = pick.every((a, i) =>
+      pick.every((b, j) => i === j || Math.abs(a.semi - b.semi) >= 2));
+    if (ok) out.push(pick);
+  }
+  return out;
+}
+
+// Every combination the active chips allow on this chord: each degree is
+// skipped or contributes one pick, and the all-empty result is dropped.
+function tensionCombos(typeId) {
+  const avail = TENSION_AVAIL[typeId];
+  if (!avail) return [];
+  const slots = TENSION_DEGREES
+    .map(d => degreePicks(
+      d.variants.filter(v => avail.includes(v.id) && S.activeTensions.has(v.id))))
+    .filter(picks => picks.length);
+
+  let combos = [[]];
+  for (const picks of slots) {
+    combos = combos.flatMap(c => [c, ...picks.map(pk => [...c, ...pk])]);
+  }
+  return combos.filter(c => c.length)
+               .map(c => c.slice().sort((a, b) => a.semi - b.semi));
+}
+
+// A dominant carrying all four altered tensions is written alt, as a lead
+// sheet would; everything else lists its tensions in parentheses.
+const ALT_KEY = 'b9|s9|s11|b13';
+
+function tensionSuffix(typeId, tensions) {
+  const key = tensions.map(v => v.id).join('|');
+  if (typeId === 'dom7' && key === ALT_KEY) return 'alt';
+  return `(${tensions.map(v => v.sym).join(', ')})`;
+}
 
 // ─── SCALE DATA ───────────────────────────────
 const SCALE_CATEGORIES = [
@@ -762,7 +839,7 @@ function t(k)      { return I18N[S.lang][k]; }
 function nm(obj)   { return S.lang === 'ko' && obj.ko ? obj.ko : obj.name; }
 
 // ─── KEY PRACTICE ─────────────────────────────
-// Chord symbol lookup, reusing the Random-mode type table.
+// Chord symbol lookup, reusing the chord-type table.
 const TYPE_SYM = Object.fromEntries(ALL_TYPES.map(t => [t.id, t.sym]));
 
 // Keys notated with flats, by tonic pitch class
@@ -838,9 +915,7 @@ const KEY_TABLES = {
       { id:'vii°', label:'vii°',  deg:11,              tri:['dim','vii°'],  sev:['dim7','vii°7']  },
     ],
     sus: [
-      { id:'Isus2',  label:'Isus2',  deg:0, tri:['sus2','Isus2'],  sev:null              },
       { id:'Isus4',  label:'Isus4',  deg:0, tri:['sus4','Isus4'],  sev:null              },
-      { id:'IVsus2', label:'IVsus2', deg:5, tri:['sus2','IVsus2'], sev:null              },
       { id:'Vsus4',  label:'Vsus4',  deg:7, tri:['sus4','Vsus4'],  sev:['7sus4','V7sus4'] },
     ],
   },
@@ -907,7 +982,6 @@ const KEY_TABLES = {
     ],
     sus: [
       // sus chords have no third, so no major/minor quality — uppercase throughout
-      { id:'isus2',  label:'Isus2',  deg:0, tri:['sus2','Isus2'],  sev:null               },
       { id:'isus4',  label:'Isus4',  deg:0, tri:['sus4','Isus4'],  sev:null               },
       { id:'ivsus4', label:'IVsus4', deg:5, tri:['sus4','IVsus4'], sev:null               },
       { id:'Vsus4',  label:'Vsus4',  deg:7, tri:['sus4','Vsus4'],  sev:['7sus4','V7sus4'] },
@@ -932,6 +1006,7 @@ const S = {
       .filter(c => c.id === 'triad' || c.id === 'seventh')
       .flatMap(c => c.types.map(t => t.id))
   ),
+  activeTensions: new Set(),   // tensions are opt-in
   activeScales: new Set(
     SCALE_CATEGORIES.find(c => c.id === 'basic').scales.map(s => s.id)
   ),
@@ -971,7 +1046,10 @@ function noteName(n) {
 }
 
 function chordLabel(c) {
-  return noteName(c.root) + c.type.sym;
+  const base = noteName(c.root) + c.type.sym;
+  return c.tensions && c.tensions.length
+    ? base + tensionSuffix(c.type.id, c.tensions)
+    : base;
 }
 
 // Which pool are we building? 'scale' | 'key' | 'random'
@@ -1092,8 +1170,15 @@ function buildPool() {
     S.pool = [];
     for (const root of S.activeRoots) {
       for (const type of ALL_TYPES) {
-        if (S.activeTypes.has(type.id)) {
-          S.pool.push({ kind:'chord', root, type, uid:`r|${root}|${type.id}` });
+        if (!S.activeTypes.has(type.id)) continue;
+        S.pool.push({ kind:'chord', root, type, tensions:[], uid:`r|${root}|${type.id}` });
+        // Tensions stack on whichever 7th chords are switched on
+        for (const tens of tensionCombos(type.id)) {
+          const key = tens.map(v => v.id).join('+');
+          S.pool.push({
+            kind:'chord', root, type, tensions:tens,
+            uid:`r|${root}|${type.id}|${key}`,
+          });
         }
       }
     }
@@ -1356,11 +1441,14 @@ document.getElementById('noRoots').addEventListener('click', () => {
 
 // ── Toggle-group renderer (shared by chord types & scale types) ──
 function renderToggleGroups(container, cats, opts) {
-  const { itemsOf, idOf, labelOf, sel, openSet } = opts;
+  const { itemsOf, idOf, labelOf, selOf, openSet, rowsOf } = opts;
   container.innerHTML = '';
 
   cats.forEach(cat => {
-    const items   = itemsOf(cat);
+    const items = itemsOf(cat);
+    const sel   = selOf(cat);
+    const rows  = rowsOf ? rowsOf(cat) : null;
+
     const section = document.createElement('div');
     section.className = 'cat-section';
 
@@ -1379,31 +1467,56 @@ function renderToggleGroups(container, cats, opts) {
     const body = document.createElement('div');
     body.className = 'cat-body';
 
-    const chips = items.map(it => {
+    const chipFor   = new Map();
+    const rowLabels = [];
+
+    function makeChip(it) {
+      const id   = idOf(it);
       const chip = document.createElement('button');
-      chip.className = 'type-chip' + (sel.has(idOf(it)) ? ' on' : '');
+      chip.className = 'type-chip' + (sel.has(id) ? ' on' : '');
       chip.textContent = labelOf(it);
       chip.addEventListener('click', () => {
-        const id = idOf(it);
         if (sel.has(id)) sel.delete(id); else sel.add(id);
         chip.classList.toggle('on', sel.has(id));
         syncHeader();
         refreshPool();
       });
-      body.appendChild(chip);
+      chipFor.set(id, chip);
       return chip;
-    });
+    }
 
-    header.addEventListener('click', e => {
-      if (e.target === chevron) return;
-      const allOn = items.every(it => sel.has(idOf(it)));
-      items.forEach((it, i) => {
+    function setAll(group, on) {
+      group.forEach(it => {
         const id = idOf(it);
-        if (allOn) { sel.delete(id); chips[i].classList.remove('on'); }
-        else       { sel.add(id);    chips[i].classList.add('on');    }
+        if (on) sel.add(id); else sel.delete(id);
+        chipFor.get(id).classList.toggle('on', on);
       });
       syncHeader();
       refreshPool();
+    }
+
+    if (rows) {
+      // Tensions: one row per degree, its label toggling the whole row
+      rows.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'ten-row';
+        const label = document.createElement('button');
+        label.className = 'ten-label';
+        label.textContent = r.label;
+        label.addEventListener('click', () =>
+          setAll(r.items, !r.items.every(it => sel.has(idOf(it)))));
+        row.appendChild(label);
+        r.items.forEach(it => row.appendChild(makeChip(it)));
+        rowLabels.push(label);
+        body.appendChild(row);
+      });
+    } else {
+      items.forEach(it => body.appendChild(makeChip(it)));
+    }
+
+    header.addEventListener('click', e => {
+      if (e.target === chevron) return;
+      setAll(items, !items.every(it => sel.has(idOf(it))));
     });
 
     const isOpen = openSet.has(cat.id);
@@ -1421,6 +1534,10 @@ function renderToggleGroups(container, cats, opts) {
       const n = items.filter(it => sel.has(idOf(it))).length;
       countEl.textContent = `${n}/${items.length}`;
       header.className = 'cat-header' + (n === items.length ? ' all-on' : n > 0 ? ' partial' : '');
+      if (rows) {
+        rows.forEach((r, k) =>
+          rowLabels[k].classList.toggle('on', r.items.some(it => sel.has(idOf(it)))));
+      }
     }
 
     syncHeader();
@@ -1435,11 +1552,14 @@ const openChordCats  = new Set();
 
 function renderChordCategories() {
   renderToggleGroups($catGrid, CATEGORIES, {
-    itemsOf: c  => c.types,
-    idOf:    ty => ty.id,
-    labelOf: ty => ty.sym === '' ? 'maj' : ty.sym,
-    sel:     S.activeTypes,
+    itemsOf: c  => c.tensions || c.types,
+    idOf:    it => it.id,
+    labelOf: it => it.sym === '' ? 'maj' : it.sym,
+    selOf:   c  => c.tensions ? S.activeTensions : S.activeTypes,
     openSet: openChordCats,
+    rowsOf:  c  => c.tensions
+      ? TENSION_DEGREES.map(d => ({ label: d.label, items: d.variants }))
+      : null,
   });
 }
 
@@ -1539,7 +1659,7 @@ function renderScaleCategories() {
     itemsOf: c  => c.scales,
     idOf:    sc => sc.id,
     labelOf: sc => nm(sc),
-    sel:     S.activeScales,
+    selOf:   () => S.activeScales,
     openSet: openScaleCats,
   });
 }
