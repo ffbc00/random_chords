@@ -417,6 +417,8 @@
     }
 
     /* Tension chips, one row per degree */
+    #keyTensionRows:not(:empty) { margin-top: 10px; }
+    #keyTensionRows .ten-row + .ten-row { margin-top: 6px; }
     .ten-row {
       flex: 0 0 100%;
       display: flex;
@@ -607,20 +609,25 @@
       <button class="seg-btn"    data-q="minor" data-i18n="minor">Minor</button>
     </div>
 
-    <div class="s-row">
-      <span class="s-label" data-i18n="voicing">Voicing</span>
-      <div class="chip-row" id="voicingRow">
-        <button class="chip"    data-v="tri" data-i18n="triads">Triads</button>
-        <button class="chip on" data-v="sev" data-i18n="sevenths">7ths</button>
-      </div>
+    <div class="s-row"><span class="s-label" data-i18n="voicing">Voicing</span></div>
+    <div class="chip-row" id="voicingRow">
+      <button class="chip"    data-v="tri" data-i18n="triads">Triads</button>
+      <button class="chip on" data-v="sev" data-i18n="sevenths">7ths</button>
+      <button class="chip"    data-v="ten" data-i18n="tensionsAxis">Tensions</button>
+      <button class="chip"    data-v="add" data-i18n="addedAxis">Added</button>
     </div>
+    <div id="keyTensionRows"></div>
 
     <div class="s-row"><span class="s-label" data-i18n="chordFunctions">Chord Functions</span></div>
     <div id="keyGroupGrid"></div>
 
     <div class="s-row">
       <span class="s-label" data-i18n="showFunction">Show Function</span>
-      <button class="chip on" id="showFuncToggle">On</button>
+      <div class="chip-row" id="funcModeRow">
+        <button class="chip"    data-f="off"   data-i18n="off">Off</button>
+        <button class="chip"    data-f="basic" data-i18n="funcBasic">Function</button>
+        <button class="chip on" data-f="full"  data-i18n="funcFull">Extended</button>
+      </div>
     </div>
   </div>
 
@@ -834,6 +841,8 @@ const I18N = {
     key:'Key', major:'Major', minor:'Minor',
     voicing:'Voicing',
     showDegrees:'Show Degrees', doubleAcc:'Double Accidentals',
+    tensionsAxis:'Tensions', addedAxis:'Added',
+    funcBasic:'Function', funcFull:'Extended',
     triads:'Triads', sevenths:'7ths',
     chordFunctions:'Chord Functions', showFunction:'Show Function',
     on:'On', off:'Off',
@@ -860,6 +869,8 @@ const I18N = {
     key:'조성', major:'장조', minor:'단조',
     voicing:'보이싱',
     showDegrees:'도수 표시', doubleAcc:'겹임시표 허용',
+    tensionsAxis:'텐션', addedAxis:'부가음',
+    funcBasic:'기본 기능', funcFull:'확장 표기',
     triads:'3화음', sevenths:'7화음',
     chordFunctions:'기능별 코드', showFunction:'기능 표기',
     on:'켬', off:'끔',
@@ -1077,7 +1088,7 @@ const S = {
   // Per group: a non-empty subset of {'tri','sev'}
   voicing:     new Set(['sev']),
   pairMode:     'pair',     // 'pair' | 'separate'
-  showFunction: true,
+  funcMode:     'full',   // 'off' | 'basic' | 'full'
 };
 
 // ═══════════════════════════════════════════════
@@ -1118,8 +1129,8 @@ function itemsFor(groupId) {
   return items.filter(it => {
     const k = [
       it.deg,
-      S.voicing.has('tri') && it.tri ? it.tri[0] : '',
-      S.voicing.has('sev') && it.sev ? it.sev[0] : '',
+      (S.voicing.has('tri') || S.voicing.has('add')) && it.tri ? it.tri[0] : '',
+      (S.voicing.has('sev') || S.voicing.has('ten')) && it.sev ? it.sev[0] : '',
     ].join('|');
     if (seen.has(k)) return false;
     seen.add(k);
@@ -1132,7 +1143,7 @@ function itemsFor(groupId) {
 // stay tellable apart (i7 vs i(M7), vii°7 vs viiø7).
 function itemLabel(it) {
   if (!it.flavor) return it.label;
-  if (S.voicing.has('sev') && it.sev) return it.sev[1];
+  if ((S.voicing.has('sev') || S.voicing.has('ten')) && it.sev) return it.sev[1];
   return it.tri ? it.tri[1] : it.label;
 }
 
@@ -1183,9 +1194,56 @@ function noteNameAcc(n, acc) {
   return noteName(n);
 }
 
+// The added-tone shapes a triad can take: [type id, roman suffix]
+const ADDED_FORMS = {
+  maj: [['6', '6'], ['add9', 'add9'], ['69', '6/9']],
+  min: [['m6', '6'], ['madd9', 'add9'], ['m69', '6/9']],
+};
+
+// Every shape one entry can take under the current voicing. Tensions ride on
+// the 7th; added tones drop the 7th, so a dominant would stop being one.
+function voicingForms(triType, sevType) {
+  const forms = [];
+  if (S.voicing.has('tri') && triType) forms.push({ typeId: triType, tensions: [], from: 'tri' });
+  if (S.voicing.has('sev') && sevType) forms.push({ typeId: sevType, tensions: [], from: 'sev' });
+  if (S.voicing.has('ten') && sevType) {
+    for (const tens of tensionCombos(sevType)) {
+      forms.push({ typeId: sevType, tensions: tens, from: 'ten' });
+    }
+  }
+  if (S.voicing.has('add') && ADDED_FORMS[triType] && sevType !== 'dom7') {
+    for (const [tid, suffix] of ADDED_FORMS[triType]) {
+      forms.push({ typeId: tid, tensions: [], from: 'add', suffix });
+    }
+  }
+  return forms;
+}
+
+// A form's roman numeral. `full` spells the tensions out the way a Berklee
+// worksheet does — IM7(9); the plain reading keeps only what the chord does in
+// the key, since tensions colour a function without changing it.
+function formRoman(form, romanTri, romanSev, full) {
+  if (form.from === 'tri') return romanTri;
+  if (form.from === 'add') return romanTri + form.suffix;
+  if (form.from === 'ten') {
+    return full ? romanSev + tensionSuffix(form.typeId, form.tensions) : romanSev;
+  }
+  return romanSev;
+}
+
+function formKey(form) {
+  return form.typeId + (form.tensions.length ? '+' + form.tensions.map(v => v.id).join('+') : '');
+}
+
+// 'ii7\u2013V7 / V' \u2192 its three pieces
+function splitPairRoman(roman) {
+  const [both, target] = roman.split(' / ');
+  const [r1, r2] = both.split('\u2013');
+  return { r1, r2, target };
+}
+
 function buildKeyPool() {
-  const out  = [];
-  const want = ['tri', 'sev'].filter(v => S.voicing.has(v));
+  const out = [];
   for (const g of KEY_GROUPS) {
     const sel  = S.keySel[S.keyQuality][g.id];
     // Two entries kept apart by their 7th can still share a triad — natural i
@@ -1195,38 +1253,56 @@ function buildKeyPool() {
     for (const it of itemsFor(g.id)) {
       if (!sel.has(it.id)) continue;
 
-      for (const v of want) {
-        if (g.pair) {
-          const ta = it.a[v], tb = it.b[v];
-          const roman = v === 'tri' ? it.romanTri : it.romanSev;
-          const ra = (S.keyRoot + it.a.deg) % 12;
-          const rb = (S.keyRoot + it.b.deg) % 12;
-          if (S.pairMode === 'pair') {
-            out.push({
-              kind: 'pair', roman,
-              a: { root: ra, typeId: ta }, b: { root: rb, typeId: tb },
-              uid: `k|${g.id}|${it.id}|${v}`,
-            });
-          } else {
-            const [r1, r2] = roman.split(' / ')[0].split('–');
-            const tgt = roman.split(' / ')[1];
-            out.push({ kind:'keychord', root: ra, typeId: ta, roman: `${r1} / ${tgt}`, uid:`k|${g.id}|${it.id}|${v}|a` });
-            out.push({ kind:'keychord', root: rb, typeId: tb, roman: `${r2} / ${tgt}`, uid:`k|${g.id}|${it.id}|${v}|b` });
+      if (g.pair) {
+        const { r1, r2, target } = splitPairRoman(it.romanSev);
+        const triRoman = splitPairRoman(it.romanTri);
+        const ra = (S.keyRoot + it.a.deg) % 12;
+        const rb = (S.keyRoot + it.b.deg) % 12;
+
+        // Both halves carry their own shape, so the pair is every combination
+        const formsA = voicingForms(it.a.tri, it.a.sev);
+        const formsB = voicingForms(it.b.tri, it.b.sev);
+        for (const fa of formsA) {
+          for (const fb of formsB) {
+            const key = `k|${g.id}|${it.id}|${formKey(fa)}|${formKey(fb)}`;
+            const romans = full => [
+              formRoman(fa, triRoman.r1, r1, full),
+              formRoman(fb, triRoman.r2, r2, full),
+            ];
+            const [fa1, fb1] = romans(true);
+            const [fa0, fb0] = romans(false);
+            if (S.pairMode === 'pair') {
+              out.push({
+                kind: 'pair',
+                roman:      `${fa1} – ${fb1}/${target}`,
+                romanBasic: `${fa0} – ${fb0}/${target}`,
+                a: { root: ra, typeId: fa.typeId, tensions: fa.tensions },
+                b: { root: rb, typeId: fb.typeId, tensions: fb.tensions },
+                uid: key,
+              });
+            } else {
+              out.push({ kind:'keychord', root: ra, typeId: fa.typeId, tensions: fa.tensions,
+                         roman: `${fa1}/${target}`, romanBasic: `${fa0}/${target}`, uid: key + '|a' });
+              out.push({ kind:'keychord', root: rb, typeId: fb.typeId, tensions: fb.tensions,
+                         roman: `${fb1}/${target}`, romanBasic: `${fb0}/${target}`, uid: key + '|b' });
+            }
           }
-        } else {
-          const spec = it[v];
-          if (!spec) continue;
-          const root = (S.keyRoot + it.deg) % 12;
-          const dedup = `${root}|${spec[0]}`;
+        }
+      } else {
+        const root = (S.keyRoot + it.deg) % 12;
+        for (const f of voicingForms(it.tri && it.tri[0], it.sev && it.sev[0])) {
+          const dedup = `${root}|${formKey(f)}`;
           if (seen.has(dedup)) continue;
           seen.add(dedup);
           out.push({
             kind: 'keychord',
             root,
-            typeId: spec[0],
-            roman:  spec[1],
-            acc:    it.acc || null,
-            uid: `k|${g.id}|${it.id}|${v}`,
+            typeId: f.typeId,
+            tensions: f.tensions,
+            roman:      formRoman(f, it.tri && it.tri[1], it.sev && it.sev[1], true),
+            romanBasic: formRoman(f, it.tri && it.tri[1], it.sev && it.sev[1], false),
+            acc:   it.acc || null,
+            uid:   `k|${g.id}|${it.id}|${formKey(f)}`,
           });
         }
       }
@@ -1340,19 +1416,38 @@ function fitChord() {
   }
 }
 
-// A chord pair is two chords at once, so spelling its tones would be
-// ambiguous; everything else gets its notes and degrees on demand.
+// Which reading of the roman numeral the reader asked for
+function romanOf(c) {
+  return (S.funcMode === 'basic' ? c.romanBasic : c.roman) || '';
+}
+
+// One key chord as text: note, symbol, and any tensions in parentheses
+function keyChordText(x) {
+  const base = noteNameAcc(x.root, x.acc || null) + TYPE_SYM[x.typeId];
+  return x.tensions && x.tensions.length
+    ? base + tensionSuffix(x.typeId, x.tensions)
+    : base;
+}
+
+function tonesOf(x, acc) {
+  return chordTones(x.typeId, x.root, noteNameAcc(x.root, acc || null), x.tensions);
+}
+
+// A pair shows both halves, split by the same dash the chord line uses.
 function renderTones(c) {
-  let tones = [];
+  let groups = [];
   if (c && c.kind === 'chord') {
-    tones = chordTones(c.type.id, c.root, noteName(c.root), c.tensions);
+    groups = [chordTones(c.type.id, c.root, noteName(c.root), c.tensions)];
   } else if (c && c.kind === 'keychord') {
-    tones = chordTones(c.typeId, c.root, noteNameAcc(c.root, c.acc), null);
+    groups = [tonesOf(c, c.acc)];
+  } else if (c && c.kind === 'pair') {
+    groups = [tonesOf(c.a), tonesOf(c.b)];
   }
-  $chordNotes.textContent =
-    S.showChordNotes && tones.length ? tones.map(t => t.note).join(' \u00b7 ') : '';
-  $chordDegrees.textContent =
-    S.showDegrees && tones.length ? tones.map(t => t.deg).join(' \u00b7 ') : '';
+  const line = pick => groups.length && groups.every(g => g.length)
+    ? groups.map(g => g.map(pick).join(' \u00b7 ')).join('  \u2013  ')
+    : '';
+  $chordNotes.textContent   = S.showChordNotes ? line(t => t.note) : '';
+  $chordDegrees.textContent = S.showDegrees    ? line(t => t.deg)  : '';
 }
 
 function renderItem() {
@@ -1364,12 +1459,12 @@ function renderItem() {
 
       if (c) {
         if (c.kind === 'pair') {
-          text = `${noteName(c.a.root)}${TYPE_SYM[c.a.typeId]} → ${noteName(c.b.root)}${TYPE_SYM[c.b.typeId]}`;
-          func = c.roman;
+          text = `${keyChordText(c.a)} – ${keyChordText(c.b)}`;
+          func = romanOf(c);
           isPair = true;
         } else if (c.kind === 'keychord') {
-          text = noteNameAcc(c.root, c.acc) + TYPE_SYM[c.typeId];
-          func = c.roman;
+          text = keyChordText(c);
+          func = romanOf(c);
         } else {
           text = chordLabel(c);
         }
@@ -1378,7 +1473,7 @@ function renderItem() {
       $current.textContent = text;
       $current.classList.toggle('pair', isPair);
       fitChord();
-      $chordFunc.textContent = (S.chordMode === 'key' && S.showFunction) ? func : '';
+      $chordFunc.textContent = (S.chordMode === 'key' && S.funcMode !== 'off') ? func : '';
       renderTones(c);
       $chordWrap.classList.remove('fade');
     }, 120);
@@ -1852,6 +1947,50 @@ document.querySelectorAll('#keyQualSeg .seg-btn').forEach(btn => {
   });
 });
 
+const $keyTensionRows = document.getElementById('keyTensionRows');
+
+// The same chips as the Tensions category, on the same state, placed where the
+// voicing axis that uses them lives.
+function renderKeyTensions() {
+  $keyTensionRows.innerHTML = '';
+  if (!S.voicing.has('ten')) return;
+
+  const changed = () => {
+    renderKeyTensions();
+    renderChordCategories();   // the other copy of these chips
+    refreshPool();
+  };
+
+  TENSION_DEGREES.forEach(d => {
+    const row = document.createElement('div');
+    row.className = 'ten-row';
+    const label = document.createElement('button');
+    label.className = 'ten-label' +
+      (d.variants.some(v => S.activeTensions.has(v.id)) ? ' on' : '');
+    label.textContent = d.label;
+    label.addEventListener('click', () => {
+      const allOn = d.variants.every(v => S.activeTensions.has(v.id));
+      d.variants.forEach(v =>
+        allOn ? S.activeTensions.delete(v.id) : S.activeTensions.add(v.id));
+      changed();
+    });
+    row.appendChild(label);
+
+    d.variants.forEach(v => {
+      const chip = document.createElement('button');
+      chip.className = 'type-chip' + (S.activeTensions.has(v.id) ? ' on' : '');
+      chip.textContent = v.sym;
+      chip.addEventListener('click', () => {
+        if (S.activeTensions.has(v.id)) S.activeTensions.delete(v.id);
+        else                            S.activeTensions.add(v.id);
+        changed();
+      });
+      row.appendChild(chip);
+    });
+    $keyTensionRows.appendChild(row);
+  });
+}
+
 function syncVoicing() {
   document.querySelectorAll('#voicingRow .chip').forEach(b => {
     b.classList.toggle('on', S.voicing.has(b.dataset.v));
@@ -1869,6 +2008,7 @@ document.querySelectorAll('#voicingRow .chip').forEach(btn => {
       S.voicing.add(v);
     }
     syncVoicing();
+    renderKeyTensions();
     // Voicing feeds the dedup and the chip labels, so redraw the whole list
     renderKeyGroups();
     refreshPool();
@@ -2016,14 +2156,16 @@ function renderKeyGroups() {
 }
 
 // ── Show Function toggle ───────────────────────
-const $showFuncToggle = document.getElementById('showFuncToggle');
-$showFuncToggle.addEventListener('click', () => {
-  S.showFunction = !S.showFunction;
-  $showFuncToggle.textContent = S.showFunction ? t('on') : t('off');
-  $showFuncToggle.classList.toggle('on', S.showFunction);
-  if (S.current && S.chordMode === 'key') {
-    $chordFunc.textContent = S.showFunction ? (S.current.roman || '') : '';
-  }
+document.querySelectorAll('#funcModeRow .chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (S.funcMode === btn.dataset.f) return;
+    S.funcMode = btn.dataset.f;
+    document.querySelectorAll('#funcModeRow .chip')
+      .forEach(b => b.classList.toggle('on', b === btn));
+    if (S.current && S.chordMode === 'key') {
+      $chordFunc.textContent = S.funcMode !== 'off' ? romanOf(S.current) : '';
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════
@@ -2044,7 +2186,8 @@ function applyI18n() {
   $showChordNotes.textContent  = S.showChordNotes ? t('on') : t('off');
   $showDegreesBtn.textContent  = S.showDegrees    ? t('on') : t('off');
   $doubleAccBtn.textContent    = S.doubleAcc      ? t('on') : t('off');
-  $showFuncToggle.textContent  = S.showFunction   ? t('on') : t('off');
+  document.querySelectorAll('#funcModeRow .chip')
+    .forEach(b => b.classList.toggle('on', b.dataset.f === S.funcMode));
   $startBtn.textContent = S.running ? t('pause') : (S.current ? t('resume') : t('start'));
 
   // Content rendered from data tables
@@ -2052,6 +2195,7 @@ function applyI18n() {
   renderScaleCategories();
   renderKeyGroups();
   syncVoicing();
+  renderKeyTensions();
   renderKeyBadge();
   renderProgress();
   renderPoolCount();
