@@ -661,7 +661,7 @@ const CATEGORIES = [
   },
   {
     id: 'seventh', name: '7th Chords', ko: '7화음',
-    ex: 'CM7 · Cm7 · C7 · Cm7♭5',
+    ex: 'CM7 · Cm7 · C7 · Cm7♭5 · C7♭5',
     types: [
       { id:'maj7',    sym:'M7'      },
       { id:'min7',    sym:'m7'      },
@@ -669,8 +669,9 @@ const CATEGORIES = [
       { id:'hdim7',   sym:'m7♭5'   },
       { id:'dim7',    sym:'dim7'    },
       { id:'mMaj7',   sym:'mM7'     },
-      { id:'aug7',    sym:'aug7'    },
-      { id:'augMaj7', sym:'augM7'   },
+      { id:'7b5',     sym:'7♭5'    },
+      { id:'aug7',    sym:'7♯5'    },
+      { id:'augMaj7', sym:'M7♯5'  },
       { id:'7sus4',   sym:'7sus4'   },
     ]
   },
@@ -707,6 +708,7 @@ const TENSION_AVAIL = {
   hdim7:   ['n9', 'n11', 'b13'],                     // locrian ♮2
   dim7:    ['n9', 'n11', 'b13'],                     // a whole step above each chord tone
   mMaj7:   ['n9', 'n11', 'n13'],                     // melodic minor
+  '7b5':   ['b9', 'n9', 's9', 'b13', 'n13'],         // the ♭5 is the ♯11, so no 11 either
   aug7:    ['n9', 's11'],                            // whole tone: the ♯5 is a chord tone
   augMaj7: ['n9', 's11'],                            // lydian augmented; 13 clashes with ♯5
   '7sus4': ['b9', 'n9', 'b13', 'n13'],               // the 4th is a chord tone here
