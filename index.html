@@ -290,6 +290,12 @@
 
     /* Chip */
     .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
+    .level-hint {
+      margin-top: 8px;
+      font-size: 11.5px;
+      line-height: 1.5;
+      color: var(--dim);
+    }
     .chip {
       padding: 7px 15px;
       border-radius: 20px;
@@ -544,6 +550,11 @@
     <button class="btn btn-icon" id="closeBtn">✕</button>
   </div>
 
+  <!-- Level presets -->
+  <div class="s-row"><span class="s-label" data-i18n="level">Level</span></div>
+  <div class="chip-row" id="levelRow"></div>
+  <div class="level-hint" data-i18n="levelHint">Sets everything at once. Adjust freely afterwards.</div>
+
   <!-- Language -->
   <div class="s-row">
     <span class="s-label" data-i18n="language">Language</span>
@@ -797,6 +808,38 @@ function tensionSuffix(typeId, tensions) {
   return `(${tensions.map(v => v.sym).join(', ')})`;
 }
 
+// Level presets configure both practice modes at once. They are a starting
+// point, not a mode — pressing one loads its settings and nothing stays
+// selected, so the reader is free to adjust from there. '*' means everything.
+// Language and notation are personal, and the key is what you want to drill
+// rather than how hard it is, so no level touches those.
+const LEVELS = [
+  { id:'starter',  name:'Intro',        ko:'입문',
+    interval:8, roots:[0,2,4,5,7,9,11],
+    types:['maj','min'], tensions:[], scaleCats:['basic'],
+    keyGroups:['diatonic'], voicing:['tri'],
+    funcMode:'full',  notes:true,  degrees:true  },
+
+  { id:'beginner', name:'Beginner',     ko:'초급',
+    interval:6, roots:'*',
+    types:['maj','min','aug','dim','sus4'], tensions:[], scaleCats:['basic'],
+    keyGroups:['diatonic'], voicing:['sev'],
+    funcMode:'full',  notes:true,  degrees:false },
+
+  { id:'inter',    name:'Intermediate', ko:'중급',
+    interval:4, roots:'*',
+    types:['maj','min','aug','dim','sus4','maj7','min7','dom7','hdim7'],
+    tensions:[], scaleCats:['basic','modes'],
+    keyGroups:['diatonic','secondary','related'], voicing:['sev'],
+    funcMode:'basic', notes:false, degrees:false },
+
+  { id:'advanced', name:'Advanced',     ko:'고급',
+    interval:3, roots:'*',
+    types:'*', tensions:['n9'], scaleCats:'*',
+    keyGroups:'*', voicing:['sev','ten'],
+    funcMode:'off',   notes:false, degrees:false },
+];
+
 // ─── SCALE DATA ───────────────────────────────
 const SCALE_CATEGORIES = [
   {
@@ -823,12 +866,13 @@ const SCALE_CATEGORIES = [
 ];
 const ALL_SCALES = SCALE_CATEGORIES.flatMap(c => c.scales);
 
-const PRESETS = [2, 3, 4, 5, 8, 10, 15, 20, 30];
+const PRESETS = [2, 3, 4, 5, 6, 8, 10, 15, 20, 30];
 
 // ─── I18N ─────────────────────────────────────
 const I18N = {
   en: {
     appTitle:'Chord Trainer', tabChords:'Chords', tabScales:'Scales',
+    level:'Level', levelHint:'Sets everything at once. Adjust freely afterwards.',
     selectBy:'Chord Selection', byType:'By Chord Type', byFunction:'By Chord Function',
     skip:'Skip', start:'Start', pause:'Pause', resume:'Resume',
     ready:'Ready', paused:'Paused',
@@ -857,6 +901,7 @@ const I18N = {
   },
   ko: {
     appTitle:'코드 트레이너', tabChords:'코드', tabScales:'스케일',
+    level:'레벨', levelHint:'한 번에 설정을 맞춥니다. 이후 자유롭게 바꾸세요.',
     selectBy:'코드 선택 방식', byType:'코드 유형별', byFunction:'코드 기능별',
     skip:'건너뛰기', start:'시작', pause:'일시정지', resume:'계속',
     ready:'준비', paused:'멈춤',
@@ -1524,6 +1569,7 @@ function renderPoolCount() {
 function refreshPool() {
   buildPool();
   renderPoolCount();
+  syncLevelChips();
   // Auto-pause if pool empties while running
   if (S.running && !S.pool.length) {
     stopTimer();
@@ -1579,11 +1625,13 @@ function setInterval_(sec) {
   S.interval = sec;
   document.querySelectorAll('#intervalRow .chip').forEach(b => b.classList.remove('on'));
   if (S.running) { S.timeLeft = Math.min(S.timeLeft, sec); startTimer(); }
+  syncLevelChips();   // the interval is part of a level, but changes no pool
 }
 
 PRESETS.forEach(s => {
   const btn = document.createElement('button');
   btn.className = 'chip' + (s === S.interval ? ' on' : '');
+  btn.dataset.sec = s;
   btn.textContent = s + 's';
   btn.addEventListener('click', () => {
     setInterval_(s);
@@ -1599,6 +1647,111 @@ document.getElementById('applyCustom').addEventListener('click', () => {
     setInterval_(val);
   }
 });
+
+// ── Levels ─────────────────────────────────
+const $levelRow = document.getElementById('levelRow');
+
+function syncIntervalChips() {
+  document.querySelectorAll('#intervalRow .chip')
+    .forEach(b => b.classList.toggle('on', Number(b.dataset.sec) === S.interval));
+}
+
+function syncToneToggles() {
+  $showChordNotes.classList.toggle('on', S.showChordNotes);
+  $showDegreesBtn.classList.toggle('on', S.showDegrees);
+  $doubleAccBtn.classList.toggle('on', S.doubleAcc);
+  $showNotesToggle.classList.toggle('on', S.showNotes);
+  syncToneRows();
+}
+
+const sameSet = (a, b) => a.size === b.size && [...a].every(x => b.has(x));
+
+// A level spelled out as concrete values. Both applying and matching read it,
+// so the two can never drift apart.
+function levelValues(lv) {
+  const every12 = [...Array(12).keys()];
+  const keySel  = { major: {}, minor: {} };
+  // Both qualities get the same groups, so switching major/minor stays on level
+  for (const q of ['major', 'minor']) {
+    for (const g of KEY_GROUPS) {
+      const on = lv.keyGroups === '*' || lv.keyGroups.includes(g.id);
+      keySel[q][g.id] = new Set(on ? KEY_TABLES[q][g.id].map(it => it.id) : []);
+    }
+  }
+  return {
+    interval: lv.interval,
+    roots:    new Set(lv.roots === '*' ? every12 : lv.roots),
+    types:    new Set(lv.types === '*' ? ALL_TYPES.map(ty => ty.id) : lv.types),
+    tensions: new Set(lv.tensions),
+    scales:   new Set(SCALE_CATEGORIES
+                .filter(c => lv.scaleCats === '*' || lv.scaleCats.includes(c.id))
+                .flatMap(c => c.scales.map(sc => sc.id))),
+    voicing:  new Set(lv.voicing),
+    funcMode: lv.funcMode,
+    notes:    lv.notes,
+    degrees:  lv.degrees,
+    keySel,
+  };
+}
+
+function applyLevel(lv) {
+  const v = levelValues(lv);
+  setInterval_(v.interval);
+  S.activeRoots    = v.roots;
+  S.activeTypes    = v.types;
+  S.activeTensions = v.tensions;
+  S.activeScales   = v.scales;
+  S.voicing        = v.voicing;
+  S.funcMode       = v.funcMode;
+  S.showChordNotes = v.notes;
+  S.showDegrees    = v.degrees;
+  S.keySel         = v.keySel;
+
+  renderNoteGrid();
+  syncIntervalChips();
+  applyI18n();          // redraws the category lists, key groups, voicing, tensions
+  resetDisplay();
+}
+
+// A level chip stays lit only while the settings still equal it, so changing
+// anything clears it by itself — no "you are in intermediate mode" to go stale.
+function levelMatches(lv) {
+  const v = levelValues(lv);
+  if (S.interval !== v.interval) return false;
+  if (S.funcMode !== v.funcMode) return false;
+  if (S.showChordNotes !== v.notes || S.showDegrees !== v.degrees) return false;
+  if (!sameSet(S.activeRoots, v.roots)) return false;
+  if (!sameSet(S.activeTypes, v.types)) return false;
+  if (!sameSet(S.activeTensions, v.tensions)) return false;
+  if (!sameSet(S.activeScales, v.scales)) return false;
+  if (!sameSet(S.voicing, v.voicing)) return false;
+  for (const q of ['major', 'minor']) {
+    for (const g of KEY_GROUPS) {
+      if (!sameSet(S.keySel[q][g.id], v.keySel[q][g.id])) return false;
+    }
+  }
+  return true;
+}
+
+function syncLevelChips() {
+  document.querySelectorAll('#levelRow .chip').forEach(b => {
+    const lv = LEVELS.find(l => l.id === b.dataset.level);
+    b.classList.toggle('on', !!lv && levelMatches(lv));
+  });
+}
+
+function renderLevels() {
+  $levelRow.innerHTML = '';
+  LEVELS.forEach(lv => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.dataset.level = lv.id;
+    btn.textContent = nm(lv);
+    btn.addEventListener('click', () => applyLevel(lv));
+    $levelRow.appendChild(btn);
+  });
+  syncLevelChips();
+}
 
 // ── Notation ──────────────────────────────────
 const $notSharp = document.getElementById('notSharp');
@@ -1867,6 +2020,7 @@ function bindToneToggle(btn, key) {
     btn.textContent = S[key] ? t('on') : t('off');
     btn.classList.toggle('on', S[key]);
     syncToneRows();
+    syncLevelChips();
     renderTones(S.current);
   });
 }
@@ -2162,6 +2316,7 @@ document.querySelectorAll('#funcModeRow .chip').forEach(btn => {
     S.funcMode = btn.dataset.f;
     document.querySelectorAll('#funcModeRow .chip')
       .forEach(b => b.classList.toggle('on', b === btn));
+    syncLevelChips();
     if (S.current && S.chordMode === 'key') {
       $chordFunc.textContent = S.funcMode !== 'off' ? romanOf(S.current) : '';
     }
@@ -2190,7 +2345,10 @@ function applyI18n() {
     .forEach(b => b.classList.toggle('on', b.dataset.f === S.funcMode));
   $startBtn.textContent = S.running ? t('pause') : (S.current ? t('resume') : t('start'));
 
+  syncToneToggles();
+
   // Content rendered from data tables
+  renderLevels();
   renderChordCategories();
   renderScaleCategories();
   renderKeyGroups();
