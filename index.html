@@ -1319,8 +1319,8 @@ function buildKeyPool() {
             if (S.pairMode === 'pair') {
               out.push({
                 kind: 'pair',
-                roman:      `${fa1} – ${fb1}/${target}`,
-                romanBasic: `${fa0} – ${fb0}/${target}`,
+                roman:      `${fa1}/${target} – ${fb1}/${target}`,
+                romanBasic: `${fa0}/${target} – ${fb0}/${target}`,
                 a: { root: ra, typeId: fa.typeId, tensions: fa.tensions },
                 b: { root: rb, typeId: fb.typeId, tensions: fb.tensions },
                 uid: key,
