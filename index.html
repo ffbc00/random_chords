@@ -1287,13 +1287,27 @@ function splitPairRoman(roman) {
   return { r1, r2, target };
 }
 
+// The same chord can serve two functions in one key — Am7 is both vi7 and the
+// ii7 of V. Those are one chord to play, not two, so the pool holds it once and
+// collects the readings; the draw picks which one to show. Entries that agree
+// on both chord and reading (the V of a related II–V is its secondary dominant)
+// collapse to nothing extra.
 function buildKeyPool() {
-  const out = [];
+  const byChord = new Map();
+
+  function add(id, entry, roman, romanBasic) {
+    let item = byChord.get(id);
+    if (!item) {
+      item = Object.assign({ uid: id, romans: [] }, entry);
+      byChord.set(id, item);
+    }
+    if (!item.romans.some(r => r.full === roman)) {
+      item.romans.push({ full: roman, basic: romanBasic });
+    }
+  }
+
   for (const g of KEY_GROUPS) {
-    const sel  = S.keySel[S.keyQuality][g.id];
-    // Two entries kept apart by their 7th can still share a triad — natural i
-    // and harmonic i are both Am. Emit each chord once per group.
-    const seen = new Set();
+    const sel = S.keySel[S.keyQuality][g.id];
 
     for (const it of itemsFor(g.id)) {
       if (!sel.has(it.id)) continue;
@@ -1309,51 +1323,44 @@ function buildKeyPool() {
         const formsB = voicingForms(it.b.tri, it.b.sev);
         for (const fa of formsA) {
           for (const fb of formsB) {
-            const key = `k|${g.id}|${it.id}|${formKey(fa)}|${formKey(fb)}`;
-            const romans = full => [
-              formRoman(fa, triRoman.r1, r1, full),
-              formRoman(fb, triRoman.r2, r2, full),
-            ];
-            const [fa1, fb1] = romans(true);
-            const [fa0, fb0] = romans(false);
+            const idA = `${ra}|${formKey(fa)}`;
+            const idB = `${rb}|${formKey(fb)}`;
+            const [fa1, fb1] = [formRoman(fa, triRoman.r1, r1, true),
+                                formRoman(fb, triRoman.r2, r2, true)];
+            const [fa0, fb0] = [formRoman(fa, triRoman.r1, r1, false),
+                                formRoman(fb, triRoman.r2, r2, false)];
             if (S.pairMode === 'pair') {
-              out.push({
+              add(`p|${idA}|${idB}`, {
                 kind: 'pair',
-                roman:      `${fa1}/${target} – ${fb1}/${target}`,
-                romanBasic: `${fa0}/${target} – ${fb0}/${target}`,
                 a: { root: ra, typeId: fa.typeId, tensions: fa.tensions },
                 b: { root: rb, typeId: fb.typeId, tensions: fb.tensions },
-                uid: key,
-              });
+              }, `${fa1}/${target} – ${fb1}/${target}`,
+                 `${fa0}/${target} – ${fb0}/${target}`);
             } else {
-              out.push({ kind:'keychord', root: ra, typeId: fa.typeId, tensions: fa.tensions,
-                         roman: `${fa1}/${target}`, romanBasic: `${fa0}/${target}`, uid: key + '|a' });
-              out.push({ kind:'keychord', root: rb, typeId: fb.typeId, tensions: fb.tensions,
-                         roman: `${fb1}/${target}`, romanBasic: `${fb0}/${target}`, uid: key + '|b' });
+              add(idA, { kind:'keychord', root: ra, typeId: fa.typeId, tensions: fa.tensions,
+                         acc: null }, `${fa1}/${target}`, `${fa0}/${target}`);
+              add(idB, { kind:'keychord', root: rb, typeId: fb.typeId, tensions: fb.tensions,
+                         acc: null }, `${fb1}/${target}`, `${fb0}/${target}`);
             }
           }
         }
       } else {
         const root = (S.keyRoot + it.deg) % 12;
         for (const f of voicingForms(it.tri && it.tri[0], it.sev && it.sev[0])) {
-          const dedup = `${root}|${formKey(f)}`;
-          if (seen.has(dedup)) continue;
-          seen.add(dedup);
-          out.push({
+          add(`${root}|${formKey(f)}`, {
             kind: 'keychord',
             root,
             typeId: f.typeId,
             tensions: f.tensions,
-            roman:      formRoman(f, it.tri && it.tri[1], it.sev && it.sev[1], true),
-            romanBasic: formRoman(f, it.tri && it.tri[1], it.sev && it.sev[1], false),
-            acc:   it.acc || null,
-            uid:   `k|${g.id}|${it.id}|${formKey(f)}`,
-          });
+            acc: it.acc || null,
+          },
+          formRoman(f, it.tri && it.tri[1], it.sev && it.sev[1], true),
+          formRoman(f, it.tri && it.tri[1], it.sev && it.sev[1], false));
         }
       }
     }
   }
-  return out;
+  return [...byChord.values()];
 }
 
 function buildPool() {
@@ -1400,6 +1407,10 @@ function pickNext() {
 
 function advance() {
   S.current = pickNext();
+  // A chord with several readings gets one picked now and kept until it leaves
+  if (S.current && S.current.romans && S.current.romans.length > 1) {
+    S.current.romanIdx = Math.floor(Math.random() * S.current.romans.length);
+  }
   renderItem();
 }
 
@@ -1463,7 +1474,9 @@ function fitChord() {
 
 // Which reading of the roman numeral the reader asked for
 function romanOf(c) {
-  return (S.funcMode === 'basic' ? c.romanBasic : c.roman) || '';
+  const r = c && c.romans && c.romans[c.romanIdx || 0];
+  if (!r) return '';
+  return (S.funcMode === 'basic' ? r.basic : r.full) || '';
 }
 
 // One key chord as text: note, symbol, and any tensions in parentheses
