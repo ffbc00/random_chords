@@ -180,6 +180,7 @@
       justify-content: space-between;
       align-items: baseline;
       margin-bottom: 8px;
+      min-height: 26px;   /* an empty number must not shrink the row */
     }
     .timer-label { font-size: 13px; color: var(--dim); }
     .timer-num   {
@@ -1418,9 +1419,10 @@ function advance() {
 // TIMER
 // ═══════════════════════════════════════════════
 
+// Runs the clock from wherever it stands. Callers that want a full interval
+// set it themselves, so resuming keeps the time left at the pause.
 function startTimer() {
   stopTimer();
-  S.timeLeft = S.interval;
   renderProgress();
   S.tick = setInterval(() => {
     S.timeLeft = Math.max(0, S.timeLeft - 0.1);
@@ -1562,8 +1564,9 @@ function renderProgress() {
     $timerLbl.textContent = S.mode === 'chord' ? t('nextChord') : t('nextScale');
     $timerNum.textContent = S.timeLeft.toFixed(1) + 's';
   } else if (S.current) {
+    // Paused still shows what is left, so resuming is predictable
     $timerLbl.textContent = t('paused');
-    $timerNum.textContent = '';
+    $timerNum.textContent = S.timeLeft.toFixed(1) + 's';
   } else {
     $timerLbl.textContent = '—';
     $timerNum.textContent = '';
@@ -1606,7 +1609,10 @@ $startBtn.addEventListener('click', () => {
     if (!S.pool.length) return;
     S.running = true;
     $startBtn.textContent = t('pause');
-    if (!S.current) advance();
+    if (!S.current) {
+      S.timeLeft = S.interval;   // a fresh run starts from the top
+      advance();
+    }
     startTimer();
   }
 });
@@ -1614,6 +1620,7 @@ $startBtn.addEventListener('click', () => {
 $skipBtn.addEventListener('click', () => {
   if (!S.running) return;
   S.timeLeft = S.interval;
+  renderProgress();   // the bar would otherwise hold its old place until the next tick
   advance();
 });
 
@@ -1637,7 +1644,9 @@ const $intervalRow = document.getElementById('intervalRow');
 function setInterval_(sec) {
   S.interval = sec;
   document.querySelectorAll('#intervalRow .chip').forEach(b => b.classList.remove('on'));
-  if (S.running) { S.timeLeft = Math.min(S.timeLeft, sec); startTimer(); }
+  // A shorter interval must not leave more on the clock than it allows
+  S.timeLeft = Math.min(S.timeLeft, sec);
+  if (S.running) startTimer(); else renderProgress();
   syncLevelChips();   // the interval is part of a level, but changes no pool
 }
 
@@ -1980,6 +1989,7 @@ function resetDisplay() {
   S.current = null;
   stopTimer();
   S.running = false;
+  S.timeLeft = S.interval;
   $startBtn.textContent = t('start');
   $current.textContent    = t('ready');
   $current.classList.remove('pair');
