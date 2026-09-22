@@ -1092,9 +1092,15 @@ const KEY_TABLES = {
       { id:'vi',  label:'vi',   deg:9,             tri:['min','vi'],  sev:['min7','vi7']   },
       { id:'bII', label:'♭II',  deg:1, acc:'flat', tri:['maj','♭II'], sev:['maj7','♭IIM7'] },
     ],
+    // One for each whole step between neighbouring diatonic roots:
+    // i–ii, ♭III–iv, iv–v, ♭VI–♭VII, ♭VII–i. Accidentals read against the
+    // parallel major, as ♭III · ♭VI · ♭VII above do, so the raised ♭III and
+    // ♭VI come out bare.
     dimin: [
       { id:'#i',   label:'♯i°',  deg:1,  acc:'sharp', tri:['dim','♯i°'],  sev:['dim7','♯i°7']  },
+      { id:'iii°', label:'iii°', deg:4,  acc:'sharp', tri:['dim','iii°'], sev:['dim7','iii°7'] },
       { id:'#iv',  label:'♯iv°', deg:6,  acc:'sharp', tri:['dim','♯iv°'], sev:['dim7','♯iv°7'] },
+      { id:'vi°',  label:'vi°',  deg:9,  acc:'sharp', tri:['dim','vi°'],  sev:['dim7','vi°7']  },
       { id:'vii°', label:'vii°', deg:11, acc:'sharp', tri:['dim','vii°'], sev:['dim7','vii°7'] },
     ],
     sus: [
