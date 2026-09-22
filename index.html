@@ -170,8 +170,15 @@
     }
 
     /* ── TIMER ── */
+    .next-peek {
+      margin-top: 20px;
+      min-height: 21px;   /* holds its place whether or not it has text */
+      font-size: 15px;
+      color: var(--dim);
+      letter-spacing: 0.2px;
+    }
     .timer-section {
-      margin-top: 36px;
+      margin-top: 14px;
       width: 100%;
       max-width: 400px;
     }
@@ -220,6 +227,8 @@
       transition: opacity 0.1s, transform 0.1s;
     }
     .btn:active { transform: scale(0.95); }
+    .btn:disabled { opacity: 0.35; cursor: default; }
+    .btn:disabled:active { transform: none; }
 
     .btn-primary   { background: var(--accent); color: #fff; font-size: 16px; padding: 14px 36px; }
     .btn-secondary { background: var(--surf2);  color: var(--text); font-size: 15px; padding: 14px 22px; }
@@ -522,6 +531,8 @@
     <div class="scale-notes" id="scaleNotes"></div>
   </div>
 
+  <div class="next-peek" id="nextPeek"></div>
+
   <div class="timer-section">
     <div class="timer-row">
       <span class="timer-label" id="timerLabel">—</span>
@@ -533,6 +544,7 @@
   </div>
 
   <div class="controls">
+    <button class="btn btn-secondary" id="backBtn"  data-i18n="back" disabled>Back</button>
     <button class="btn btn-secondary" id="skipBtn"  data-i18n="skip">Skip</button>
     <button class="btn btn-primary"   id="startBtn" data-i18n="start">Start</button>
   </div>
@@ -572,6 +584,12 @@
     <label for="customSec" data-i18n="custom">Custom:</label>
     <input type="number" id="customSec" class="num-input" min="1" max="300">
     <button class="btn btn-secondary" id="applyCustom" data-i18n="set" style="padding:7px 14px;font-size:13px">Set</button>
+  </div>
+
+  <!-- Peek at the item that comes next -->
+  <div class="s-row">
+    <span class="s-label" data-i18n="showNext">Preview Next</span>
+    <button class="chip" id="showNextBtn">Off</button>
   </div>
 
   <!-- How chords are chosen (chord mode only) -->
@@ -875,7 +893,8 @@ const I18N = {
     appTitle:'Chord Trainer', tabChords:'Chords', tabScales:'Scales',
     level:'Level', levelHint:'Sets everything at once. Adjust freely afterwards.',
     selectBy:'Chord Selection', byType:'By Chord Type', byFunction:'By Chord Function',
-    skip:'Skip', start:'Start', pause:'Pause', resume:'Resume',
+    skip:'Skip', back:'Back', start:'Start', pause:'Pause', resume:'Resume',
+    showNext:'Preview Next', nextUp:'Next',
     ready:'Ready', paused:'Paused',
     nextChord:'Next chord in', nextScale:'Next scale in',
     settings:'Settings', language:'Language',
@@ -904,7 +923,8 @@ const I18N = {
     appTitle:'코드 트레이너', tabChords:'코드', tabScales:'스케일',
     level:'레벨', levelHint:'한 번에 설정을 맞춥니다. 이후 자유롭게 바꾸세요.',
     selectBy:'코드 선택 방식', byType:'코드 유형별', byFunction:'코드 기능별',
-    skip:'건너뛰기', start:'시작', pause:'일시정지', resume:'계속',
+    skip:'건너뛰기', back:'이전', start:'시작', pause:'일시정지', resume:'계속',
+    showNext:'다음 미리보기', nextUp:'다음',
     ready:'준비', paused:'멈춤',
     nextChord:'다음 코드까지', nextScale:'다음 스케일까지',
     settings:'설정', language:'언어',
@@ -1112,7 +1132,10 @@ const S = {
   showDegrees:    false,
   doubleAcc:      false,   // spell D♭dim7 as D♭ F♭ A♭♭ C♭♭
   pool:        [],
+  prev:        null,
   current:     null,
+  next:        null,   // drawn ahead so it can be previewed
+  showNext:    false,
   tick:        null,
 
   // ── Key Practice ──
@@ -1396,23 +1419,72 @@ function buildPool() {
   }
 }
 
-function pickNext() {
+function draw(avoidUid) {
   if (!S.pool.length) return null;
   let candidates = S.pool;
-  if (S.current && S.pool.length > 1) {
-    candidates = S.pool.filter(c => c.uid !== S.current.uid);
+  if (avoidUid && S.pool.length > 1) {
+    candidates = S.pool.filter(c => c.uid !== avoidUid);
     if (!candidates.length) candidates = S.pool;
   }
-  return candidates[Math.floor(Math.random() * candidates.length)];
+  const item = candidates[Math.floor(Math.random() * candidates.length)];
+  // A chord with several readings gets one picked as it is drawn, so the
+  // preview and the chord itself agree
+  if (item && item.romans && item.romans.length > 1) {
+    item.romanIdx = Math.floor(Math.random() * item.romans.length);
+  }
+  return item;
+}
+
+// The next item is drawn before it is needed so it can be previewed. A pool
+// rebuild can leave a stale one behind, so check it still belongs.
+function ensureNext() {
+  if (!S.pool.length) { S.next = null; return; }
+  if (!S.next || !S.pool.includes(S.next)) {
+    S.next = draw(S.current && S.current.uid);
+  }
 }
 
 function advance() {
-  S.current = pickNext();
-  // A chord with several readings gets one picked now and kept until it leaves
-  if (S.current && S.current.romans && S.current.romans.length > 1) {
-    S.current.romanIdx = Math.floor(Math.random() * S.current.romans.length);
-  }
+  ensureNext();
+  S.prev    = S.current;
+  S.current = S.next;
+  S.next    = draw(S.current && S.current.uid);
   renderItem();
+  renderPeek();
+  syncBackBtn();
+}
+
+// One step only, the way a browser's back button behaves after a single visit:
+// the chord just left becomes the next one again.
+function goBack() {
+  if (!S.prev) return;
+  S.next    = S.current;
+  S.current = S.prev;
+  S.prev    = null;
+  S.timeLeft = S.interval;
+  renderProgress();
+  renderItem();
+  renderPeek();
+  syncBackBtn();
+}
+
+function syncBackBtn() {
+  $backBtn.disabled = !S.prev;
+}
+
+// How any pool item reads on one line
+function peekText(c) {
+  if (!c) return '';
+  if (c.kind === 'scale')    return noteName(c.root) + ' ' + nm(c.scale);
+  if (c.kind === 'pair')     return `${keyChordText(c.a)} – ${keyChordText(c.b)}`;
+  if (c.kind === 'keychord') return keyChordText(c);
+  return chordLabel(c);
+}
+
+function renderPeek() {
+  ensureNext();
+  $nextPeek.textContent =
+    S.showNext && S.current && S.next ? `${t('nextUp')} · ${peekText(S.next)}` : '';
 }
 
 // ═══════════════════════════════════════════════
@@ -1460,6 +1532,8 @@ const $chordNotes   = document.getElementById('chordNotes');
 const $chordDegrees = document.getElementById('chordDegrees');
 const $startBtn   = document.getElementById('startBtn');
 const $skipBtn    = document.getElementById('skipBtn');
+const $backBtn    = document.getElementById('backBtn');
+const $nextPeek   = document.getElementById('nextPeek');
 
 // A chord name is one line. With several tensions it outruns a phone screen,
 // so start at the CSS maximum and step down until it fits the wrapper.
@@ -1586,6 +1660,7 @@ function refreshPool() {
   buildPool();
   renderPoolCount();
   syncLevelChips();
+  renderPeek();
   // Auto-pause if pool empties while running
   if (S.running && !S.pool.length) {
     stopTimer();
@@ -1616,6 +1691,8 @@ $startBtn.addEventListener('click', () => {
     startTimer();
   }
 });
+
+$backBtn.addEventListener('click', goBack);
 
 $skipBtn.addEventListener('click', () => {
   if (!S.running) return;
@@ -1987,6 +2064,8 @@ function applyVisibility() {
 
 function resetDisplay() {
   S.current = null;
+  S.prev    = null;
+  S.next    = null;
   stopTimer();
   S.running = false;
   S.timeLeft = S.interval;
@@ -2000,6 +2079,8 @@ function resetDisplay() {
   $scaleName.textContent  = t('ready');
   $scaleNotes.textContent = '';
   renderProgress();
+  renderPeek();
+  syncBackBtn();
   refreshPool();
 }
 
@@ -2051,6 +2132,15 @@ bindToneToggle($showChordNotes, 'showChordNotes');
 bindToneToggle($showDegreesBtn, 'showDegrees');
 bindToneToggle($doubleAccBtn,   'doubleAcc');
 syncToneRows();
+
+// ── Preview of the next item ─────────────────
+const $showNextBtn = document.getElementById('showNextBtn');
+$showNextBtn.addEventListener('click', () => {
+  S.showNext = !S.showNext;
+  $showNextBtn.textContent = S.showNext ? t('on') : t('off');
+  $showNextBtn.classList.toggle('on', S.showNext);
+  renderPeek();
+});
 
 // ── Show Notes toggle ──────────────────────────
 const $showNotesToggle = document.getElementById('showNotesToggle');
@@ -2364,6 +2454,8 @@ function applyI18n() {
   $showChordNotes.textContent  = S.showChordNotes ? t('on') : t('off');
   $showDegreesBtn.textContent  = S.showDegrees    ? t('on') : t('off');
   $doubleAccBtn.textContent    = S.doubleAcc      ? t('on') : t('off');
+  $showNextBtn.textContent     = S.showNext       ? t('on') : t('off');
+  $showNextBtn.classList.toggle('on', S.showNext);
   document.querySelectorAll('#funcModeRow .chip')
     .forEach(b => b.classList.toggle('on', b.dataset.f === S.funcMode));
   $startBtn.textContent = S.running ? t('pause') : (S.current ? t('resume') : t('start'));
@@ -2380,6 +2472,8 @@ function applyI18n() {
   renderKeyBadge();
   renderProgress();
   renderPoolCount();
+  renderPeek();
+  syncBackBtn();
   if (S.current) renderItem();
   else if (S.mode === 'scale') $scaleName.textContent = t('ready');
   else { $current.textContent = t('ready'); fitChord(); }
